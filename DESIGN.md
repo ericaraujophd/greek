@@ -117,10 +117,15 @@ of the previous batch has graduated.
 
 ## Pronunciation and audio
 
-Erasmian, as in Mounce and at the seminary. There is deliberately no
-text-to-speech: browser Greek voices speak modern Greek, which pronounces
-several letters differently and would teach the wrong sounds. For listening,
-use Mounce's free vocabulary audio on billmounce.com.
+Erasmian, as in Mounce and at the seminary. Browser Greek voices speak
+modern Greek (η, ι, υ all "ee", β = v), so they are never used. Instead
+`lib/speech.ts` has an English voice read a phonetic respelling of the
+Erasmian pronunciation (`say` in `alphabet/data.ts`, e.g. θεός =
+"theh-OSS"), stressed where the Greek accent falls. The respelling is also
+shown on screen, which is the more reliable guide. Limits: synthetic
+voice, χ comes out as k, υ as "oo". Mounce's free recordings on
+billmounce.com remain the reference. A later option: record real audio
+(your own, or with permission a teacher's) as files in `public/audio/`.
 
 ## Adding a module
 

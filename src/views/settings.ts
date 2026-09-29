@@ -13,9 +13,16 @@ export function settingsView(): Node {
   const s = getSettings();
   const status = h('div', { class: 'small-text', style: 'min-height:22px' });
 
+  // autocomplete 'new-password' (+ the 1Password/LastPass opt-outs) stops the
+  // browser's password manager from filling the token box with your saved
+  // GitHub *password*, which GitHub then rejects with a 401.
   const field = (label: string, name: keyof typeof s, help: string, type = 'text') =>
     h('label', {}, label,
-      h('input', { name, type, value: String(s[name]), autocomplete: 'off', spellcheck: 'false' }),
+      h('input', {
+        name, type, value: String(s[name]), spellcheck: 'false',
+        autocomplete: type === 'password' ? 'new-password' : 'off',
+        'data-1p-ignore': true, 'data-lpignore': 'true',
+      }),
       h('small', {}, help));
 
   const form = h('form', {
@@ -28,8 +35,16 @@ export function settingsView(): Node {
         repo: String(data.get('repo')).trim(),
         token: String(data.get('token')).trim(),
         newPerDay: Math.max(0, Number(data.get('newPerDay')) || 18),
+        autoSpeak: data.get('autoSpeak') === 'on',
       });
       if (!syncConfigured()) { status.textContent = 'Saved. Sync stays off until owner, repo and token are all filled in.'; return; }
+      // Fine-grained tokens start with "github_pat_", classic ones with "ghp_".
+      // Anything else is almost certainly a password or a partial copy.
+      const token = getSettings().token;
+      if (!/^(github_pat_|ghp_)/.test(token)) {
+        status.textContent = `That does not look like a GitHub token (it should start with "github_pat_"). Clear the box and paste the token again.`;
+        return;
+      }
       status.textContent = 'Saved. Testing the connection…';
       await pull();
       const st = getSyncStatus();
@@ -40,6 +55,9 @@ export function settingsView(): Node {
     field('Progress repo', 'repo', 'A private repo that holds progress.json.'),
     field('Access token', 'token', 'Fine-grained token, stored only in this browser.', 'password'),
     field('New flashcards per day', 'newPerDay', '18 = one batch of six letters (three cards each) per day.', 'number'),
+    h('label', { style: 'display:flex;gap:8px;align-items:center;font-weight:600' },
+      h('input', { type: 'checkbox', name: 'autoSpeak', checked: s.autoSpeak }),
+      'Read letters aloud when a flashcard is turned over'),
     h('div', { class: 'row' },
       h('button', { class: 'primary', type: 'submit' }, 'Save and test'),
       h('button', { type: 'button', onclick: () => void push('Manual save') }, 'Save progress to GitHub now')),

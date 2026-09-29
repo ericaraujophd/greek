@@ -30,6 +30,13 @@ export interface Letter {
   note?: string;
   /** A real NT word that shows the letter, with its transliteration. */
   example: { greek: string; translit: string; gloss: string };
+  /**
+   * Phonetic respellings for the speaker button (see lib/speech.ts): the
+   * letter's name and the example word, as an ENGLISH voice should say them
+   * to approximate Erasmian pronunciation. CAPITALS = stressed syllable,
+   * which follows the Greek accent. Edit these freely if one sounds off.
+   */
+  say: { name: string; example: string };
   /** Which batch of six (1 to 4) introduces this letter. */
   batch: 1 | 2 | 3 | 4;
 }
@@ -37,72 +44,72 @@ export interface Letter {
 export const LETTERS: Letter[] = [
   // ---------------- Batch 1: α β γ δ ε ζ ----------------
   { id: 'alpha', lower: 'α', upper: 'Α', name: 'alpha', translit: 'a', sound: 'a as in father',
-    example: { greek: 'ἀγάπη', translit: 'agapē', gloss: 'love' }, batch: 1 },
+    example: { greek: 'ἀγάπη', translit: 'agapē', gloss: 'love' }, say: { name: 'AL-fah', example: 'ah-GAH-pay' }, batch: 1 },
   { id: 'beta', lower: 'β', upper: 'Β', name: 'beta', translit: 'b', sound: 'b as in Bible',
-    example: { greek: 'βίβλος', translit: 'biblos', gloss: 'book' }, batch: 1 },
+    example: { greek: 'βίβλος', translit: 'biblos', gloss: 'book' }, say: { name: 'BAY-tah', example: 'BIB-loss' }, batch: 1 },
   { id: 'gamma', lower: 'γ', upper: 'Γ', name: 'gamma', translit: 'g', sound: 'g as in gone',
     note: 'Lowercase γ hangs below the line and looks like an English y. Before γ, κ, ξ or χ it sounds like n ("gamma nasal"): ἄγγελος = angelos.',
-    example: { greek: 'γραφή', translit: 'graphē', gloss: 'writing, Scripture' }, batch: 1 },
+    example: { greek: 'γραφή', translit: 'graphē', gloss: 'writing, Scripture' }, say: { name: 'GAM-mah', example: 'grah-FAY' }, batch: 1 },
   { id: 'delta', lower: 'δ', upper: 'Δ', name: 'delta', translit: 'd', sound: 'd as in dog',
-    example: { greek: 'δόξα', translit: 'doxa', gloss: 'glory' }, batch: 1 },
+    example: { greek: 'δόξα', translit: 'doxa', gloss: 'glory' }, say: { name: 'DEL-tah', example: 'DOX-ah' }, batch: 1 },
   { id: 'epsilon', lower: 'ε', upper: 'Ε', name: 'epsilon', translit: 'e', sound: 'e as in met',
     note: 'Short e. Do not confuse with eta (η), the long e.',
-    example: { greek: 'ἐγώ', translit: 'egō', gloss: 'I' }, batch: 1 },
+    example: { greek: 'ἐγώ', translit: 'egō', gloss: 'I' }, say: { name: 'EP-sih-lon', example: 'eh-GO' }, batch: 1 },
   { id: 'zeta', lower: 'ζ', upper: 'Ζ', name: 'zeta', translit: 'z', sound: 'z as in daze',
     note: 'Compare ξ (xi), which has an extra loop at the top.',
-    example: { greek: 'ζωή', translit: 'zōē', gloss: 'life' }, batch: 1 },
+    example: { greek: 'ζωή', translit: 'zōē', gloss: 'life' }, say: { name: 'ZAY-tah', example: 'zoh-AY' }, batch: 1 },
 
   // ---------------- Batch 2: η θ ι κ λ μ ----------------
   { id: 'eta', lower: 'η', upper: 'Η', name: 'eta', translit: 'ē', sound: 'e as in obey',
     note: 'Looks like an English n with a long tail. The capital Η looks like H but is a vowel.',
-    example: { greek: 'ἡμέρα', translit: 'hēmera', gloss: 'day' }, batch: 2 },
+    example: { greek: 'ἡμέρα', translit: 'hēmera', gloss: 'day' }, say: { name: 'AY-tah', example: 'hay-MEH-rah' }, batch: 2 },
   { id: 'theta', lower: 'θ', upper: 'Θ', name: 'theta', translit: 'th', sound: 'th as in thing',
-    example: { greek: 'θεός', translit: 'theos', gloss: 'God' }, batch: 2 },
+    example: { greek: 'θεός', translit: 'theos', gloss: 'God' }, say: { name: 'THAY-tah', example: 'theh-OSS' }, batch: 2 },
   { id: 'iota', lower: 'ι', upper: 'Ι', name: 'iota', translit: 'i', sound: 'i as in intrigue (long) or sit (short)',
     note: 'No dot on top. Can be written under a vowel as a small "iota subscript" (ᾳ, ῃ, ῳ), which is not pronounced.',
-    example: { greek: 'ἱερόν', translit: 'hieron', gloss: 'temple' }, batch: 2 },
+    example: { greek: 'ἱερόν', translit: 'hieron', gloss: 'temple' }, say: { name: 'ee-OH-tah', example: 'hee-eh-RON' }, batch: 2 },
   { id: 'kappa', lower: 'κ', upper: 'Κ', name: 'kappa', translit: 'k', sound: 'k as in kitchen',
-    example: { greek: 'κύριος', translit: 'kurios', gloss: 'Lord' }, batch: 2 },
+    example: { greek: 'κύριος', translit: 'kurios', gloss: 'Lord' }, say: { name: 'KAP-pah', example: 'KOO-ree-oss' }, batch: 2 },
   { id: 'lambda', lower: 'λ', upper: 'Λ', name: 'lambda', translit: 'l', sound: 'l as in law',
-    example: { greek: 'λόγος', translit: 'logos', gloss: 'word' }, batch: 2 },
+    example: { greek: 'λόγος', translit: 'logos', gloss: 'word' }, say: { name: 'LAHMB-dah', example: 'LOG-oss' }, batch: 2 },
   { id: 'mu', lower: 'μ', upper: 'Μ', name: 'mu', translit: 'm', sound: 'm as in mother',
-    example: { greek: 'μαθητής', translit: 'mathētēs', gloss: 'disciple' }, batch: 2 },
+    example: { greek: 'μαθητής', translit: 'mathētēs', gloss: 'disciple' }, say: { name: 'moo', example: 'mah-thay-TACE' }, batch: 2 },
 
   // ---------------- Batch 3: ν ξ ο π ρ σ ----------------
   { id: 'nu', lower: 'ν', upper: 'Ν', name: 'nu', translit: 'n', sound: 'n as in new',
     note: 'Lowercase ν looks like an English v, but it is an n. Compare υ (upsilon), which is rounded at the bottom.',
-    example: { greek: 'νόμος', translit: 'nomos', gloss: 'law' }, batch: 3 },
+    example: { greek: 'νόμος', translit: 'nomos', gloss: 'law' }, say: { name: 'noo', example: 'NOM-oss' }, batch: 3 },
   { id: 'xi', lower: 'ξ', upper: 'Ξ', name: 'xi', translit: 'x', sound: 'x as in axiom',
     note: 'Compare ζ (zeta). Xi has the extra squiggle.',
-    example: { greek: 'δόξα', translit: 'doxa', gloss: 'glory' }, batch: 3 },
+    example: { greek: 'δόξα', translit: 'doxa', gloss: 'glory' }, say: { name: 'ksee', example: 'DOX-ah' }, batch: 3 },
   { id: 'omicron', lower: 'ο', upper: 'Ο', name: 'omicron', translit: 'o', sound: 'o as in not',
     note: 'Short o ("o-micron" = small o). Compare omega ω, the long o ("o-mega" = big o).',
-    example: { greek: 'οἶκος', translit: 'oikos', gloss: 'house' }, batch: 3 },
+    example: { greek: 'οἶκος', translit: 'oikos', gloss: 'house' }, say: { name: 'OM-ih-kron', example: 'OY-koss' }, batch: 3 },
   { id: 'pi', lower: 'π', upper: 'Π', name: 'pi', translit: 'p', sound: 'p as in pray',
-    example: { greek: 'πίστις', translit: 'pistis', gloss: 'faith' }, batch: 3 },
+    example: { greek: 'πίστις', translit: 'pistis', gloss: 'faith' }, say: { name: 'pee', example: 'PISS-tiss' }, batch: 3 },
   { id: 'rho', lower: 'ρ', upper: 'Ρ', name: 'rho', translit: 'r', sound: 'r as in rod',
     note: 'Lowercase ρ looks like an English p, but it is an r. The capital Ρ looks like P.',
-    example: { greek: 'ῥῆμα', translit: 'rhēma', gloss: 'word, saying' }, batch: 3 },
+    example: { greek: 'ῥῆμα', translit: 'rhēma', gloss: 'word, saying' }, say: { name: 'hroh', example: 'HRAY-mah' }, batch: 3 },
   { id: 'sigma', lower: 'σ', upper: 'Σ', name: 'sigma', translit: 's', sound: 's as in study',
     note: 'Two lowercase forms: σ in the middle of a word, ς at the end (λόγος).',
-    example: { greek: 'σῶμα', translit: 'sōma', gloss: 'body' }, batch: 3 },
+    example: { greek: 'σῶμα', translit: 'sōma', gloss: 'body' }, say: { name: 'SIG-mah', example: 'SO-mah' }, batch: 3 },
 
   // ---------------- Batch 4: τ υ φ χ ψ ω ----------------
   { id: 'tau', lower: 'τ', upper: 'Τ', name: 'tau', translit: 't', sound: 't as in talk',
-    example: { greek: 'τέκνον', translit: 'teknon', gloss: 'child' }, batch: 4 },
+    example: { greek: 'τέκνον', translit: 'teknon', gloss: 'child' }, say: { name: 'tah-oo', example: 'TEK-non' }, batch: 4 },
   { id: 'upsilon', lower: 'υ', upper: 'Υ', name: 'upsilon', translit: 'u', sound: 'u as in the French tu or German ü',
     note: 'Rounded at the bottom (υ), unlike nu (ν), which comes to a point. The capital Υ looks like Y.',
-    example: { greek: 'υἱός', translit: 'huios', gloss: 'son' }, batch: 4 },
+    example: { greek: 'υἱός', translit: 'huios', gloss: 'son' }, say: { name: 'OOP-sih-lon', example: 'hwee-OSS' }, batch: 4 },
   { id: 'phi', lower: 'φ', upper: 'Φ', name: 'phi', translit: 'ph', sound: 'ph as in phone',
-    example: { greek: 'φῶς', translit: 'phōs', gloss: 'light' }, batch: 4 },
+    example: { greek: 'φῶς', translit: 'phōs', gloss: 'light' }, say: { name: 'fee', example: 'fohss' }, batch: 4 },
   { id: 'chi', lower: 'χ', upper: 'Χ', name: 'chi', translit: 'ch', sound: 'ch as in the Scottish loch',
     note: 'Looks like an English x, but it is ch. Χριστός (Christos) begins with it, which is where "Xmas" comes from.',
-    example: { greek: 'χάρις', translit: 'charis', gloss: 'grace' }, batch: 4 },
+    example: { greek: 'χάρις', translit: 'charis', gloss: 'grace' }, say: { name: 'kee', example: 'KAH-riss' }, batch: 4 },
   { id: 'psi', lower: 'ψ', upper: 'Ψ', name: 'psi', translit: 'ps', sound: 'ps as in lips',
-    example: { greek: 'ψυχή', translit: 'psuchē', gloss: 'soul, life' }, batch: 4 },
+    example: { greek: 'ψυχή', translit: 'psuchē', gloss: 'soul, life' }, say: { name: 'psee', example: 'psoo-KAY' }, batch: 4 },
   { id: 'omega', lower: 'ω', upper: 'Ω', name: 'omega', translit: 'ō', sound: 'o as in tone',
     note: 'Long o. Looks like an English w, but it is a vowel. Compare omicron ο, the short o.',
-    example: { greek: 'ὥρα', translit: 'hōra', gloss: 'hour' }, batch: 4 },
+    example: { greek: 'ὥρα', translit: 'hōra', gloss: 'hour' }, say: { name: 'oh-MAY-gah', example: 'HO-rah' }, batch: 4 },
 ];
 
 /** Look up a letter by id. Throws on a typo so bugs surface immediately. */

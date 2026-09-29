@@ -20,6 +20,8 @@ export interface Settings {
   token: string;
   /** How many new flashcards may be introduced per day. */
   newPerDay: number;
+  /** Read the letter name and example aloud when a flashcard is turned over. */
+  autoSpeak: boolean;
 }
 
 const KEY = 'greek.settings.v1';
@@ -30,6 +32,7 @@ export const DEFAULT_SETTINGS: Settings = {
   token: '',
   // 18 = one batch of six letters x three cards: one new batch per session.
   newPerDay: 18,
+  autoSpeak: true,
 };
 
 export function getSettings(): Settings {
