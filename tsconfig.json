@@ -1,0 +1,18 @@
+{
+  // TypeScript is used only for type checking ("tsc --noEmit").
+  // Vite (esbuild) does the actual compiling during "npm run build".
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true,
+    "types": ["vite/client"]
+  },
+  "include": ["src"],
+  // Tests run under Vitest (Node), which type-checks them itself.
+  "exclude": ["src/**/*.test.ts"]
+}
