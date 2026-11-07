@@ -12,8 +12,8 @@
  *   The plugin writes a service worker that caches the whole app, including
  *   the Greek font. After the first visit the tools work offline (bus, plane,
  *   seminary basement), and on the iPad or phone you can "Add to Home Screen"
- *   so it opens like an app. Progress is saved locally and synced to GitHub
- *   whenever you are back online (see src/lib/sync.ts).
+ *   so it opens like an app. Answers made offline wait in an outbox and are
+ *   sent to the API when you are back online (see src/lib/api.ts).
  */
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
@@ -25,9 +25,9 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg'],
       manifest: {
-        name: 'Greek: Koine study tools',
+        name: 'Greek Companion',
         short_name: 'Greek',
-        description: 'Drills and spaced repetition for learning Koine Greek alongside Mounce.',
+        description: 'A study companion for Greek Fundamentals I, alongside Mounce.',
         theme_color: '#1f2a44',
         background_color: '#f7f4ee',
         display: 'standalone',
@@ -38,12 +38,12 @@ export default defineConfig({
       workbox: {
         // Cache fonts too, so Greek renders offline.
         globPatterns: ['**/*.{js,css,html,svg,woff2}'],
-        // Never cache calls to the GitHub API: sync must always hit the network.
+        // Never serve API calls from the cache: they must always hit the server.
         navigateFallbackDenylist: [/^\/api/],
       },
     }),
   ],
   test: {
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'server/**/*.test.ts'],
   },
 } as any);

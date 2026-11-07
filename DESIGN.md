@@ -1,136 +1,114 @@
 # Design
 
-This file explains how the app is put together and why, so that each new
-module can be added without re-deciding the basics.
+How the companion is put together and why, so later units and features can
+be added without re-deciding the basics. Setup steps are in the README.
 
 ## Goals and constraints
 
-1. **Serve the plan, not replace it.** Mounce and the workbook are the spine.
-   The app does what paper cannot: spaced repetition, timed drills, drills
-   weighted by your own mistakes, and progress over months.
-2. **Lives at ericaraujo.com/greek.** A separate repo (`greek`) published by
-   GitHub Pages. Because the user site `ericaraujophd.github.io` has the
-   custom domain `ericaraujo.com`, a project repo automatically appears at
-   `ericaraujo.com/<repo>/`. The main website is never touched.
-3. **Progress lives in git**, as JSON, in a private repo. No database server.
-4. **Works on the Mac, the iPad mini and the phone**, including offline.
-5. **Readable code.** Heavy comments, no framework, few dependencies.
+1. **A companion to the course, not a product.** It follows the syllabus of
+   Greek Fundamentals I (24 units, Mounce ch. 1 to 21) and does what paper
+   cannot: spaced repetition, drills weighted by your own mistakes, real NT
+   forms and verses, scores over months. Mounce and class stay the spine.
+2. **Scores, not gates.** Every check and quiz can be retaken; the best score
+   is shown. Nothing is locked behind a score.
+3. **Invitation only**, @calvinseminary.edu Google accounts.
+4. **Runs on your Mac first.** Edit, reload, see it. Hosting is decided later.
+5. **Readable code.** Heavy comments, no front-end framework, few dependencies.
 
 ## Architecture
 
 ```
-Browser (any device)
- ├─ App: static files from GitHub Pages (HTML, JS, CSS, font)
- │    service worker caches it all -> works offline
- ├─ localStorage: progress (updated on every answer), settings, device id
- └─ sync.ts ── GitHub REST API (Contents) ──> ericaraujophd/greek-progress/progress.json
+Browser                          API server (server/)              Neon Postgres
+ website (src/)  ── HTTPS ──▶     Hono on Node (later Workers) ──▶   people + activity
+   content in the repo            Bearer session token
+   outbox for answers             checks invitation on every call
 ```
 
-### Why no framework
+- **Website**: Vite + TypeScript, plain DOM through a small `h()` helper
+  (`src/lib/dom.ts`), hash routes (`src/router.ts`) because GitHub Pages is a
+  plain file server. Still a PWA (installable, caches the app and font).
+- **API**: Hono (`server/app.ts`), a small router that runs unchanged on Node
+  (now, `server/index.ts`) and Cloudflare Workers (later).
+- **Database access**: `@neondatabase/serverless` over HTTP in development
+  and production; PGlite (Postgres compiled to WebAssembly) in tests, so
+  `npm test` needs no database. Both behind the same `Db` interface
+  (`server/db.ts`). Migrations are plain SQL files run in order.
 
-Each screen is a function that returns DOM built with a 40-line helper
-(`src/lib/dom.ts`). The whole app is ~70 KB of JavaScript. There is no
-build-time magic to relearn in a year, and nothing to upgrade.
+### Sign-in
 
-### Why Vite + TypeScript
+1. Google Identity Services shows "Continue with Google" with `hd` set to the
+   seminary domain, and hands the page an ID token.
+2. The API verifies it against Google's public keys (`jose`), checks the
+   domain, then checks the invitation list (or `ADMIN_EMAILS`).
+3. It returns its own session token (HS256, 30 days). The page keeps it in
+   localStorage and sends it as `Authorization: Bearer`. Cookies are not used
+   because the website and API are on different origins.
+4. Every signed-in request re-checks the invitation, so revoking takes effect
+   at once. Revoked or expired: the page goes back to sign-in.
 
-TypeScript catches the class of bugs that would otherwise surface as a
-wrong drill answer. Vite builds in under a second and handles the service
-worker (`vite-plugin-pwa`) and the bundled font.
-
-### Routing
-
-Hash routes (`#/alphabet/speed`), because GitHub Pages is a plain file server
-and would 404 on `/greek/alphabet/speed`. See `src/router.ts`.
+`DEV_LOGIN=1` adds a "Developer sign-in" that skips Google but still applies
+the invitation rules. Never set it on a public server.
 
 ## Data
 
-### Content (in the repo, versioned with the code)
+### Content (in the repo)
 
-`src/modules/<module>/data.ts`. Content that is small and hand-curated
-(alphabet, John 1:1 to 5) is TypeScript, so a typo fails `npm test`
-(`data.test.ts`) instead of confusing a learner.
-
-Later modules need real NT data. Plan:
-
-- **Morphology** (every word of the NT with lemma and parsing):
-  [MorphGNT / SBLGNT](https://github.com/morphgnt/sblgnt), CC BY-SA.
-  A script in `scripts/` will turn it into compact JSON per chapter,
-  loaded on demand, so the app stays small.
-- **Glosses**: STEPBible data (CC BY 4.0) or the Dodson lexicon (public domain).
-- **Vocabulary lists by Mounce chapter**: Mounce's lists are copyrighted,
-  so the app will hold only the list of lemmas per chapter (a fact about the
-  book, not its text), with glosses from the open lexicon above.
-
-### Progress (in `greek-progress/progress.json`)
-
-```json
-{
-  "schema": 1,
-  "cards":    { "alpha:lambda:read": { "due": "...", "stability": 3.1, "...": "...", "updatedAt": "..." } },
-  "stats":    { "alpha:lambda": { "dev-1a2b3c4d": { "seen": 40, "correct": 37 } } },
-  "sessions": [ { "id": "...", "deviceId": "...", "start": "...", "end": "...", "counts": { "speed": 20 } } ]
-}
-```
-
-Ids are prefixed by module (`alpha:`, `type:`, `read:`, later `noun:`,
-`vocab:`, `parse:`), so every module shares one file and one sync.
-
-### Why git-backed JSON (and how its weak spots are handled)
-
-Chosen over a hosted database (Supabase) to keep everything in GitHub with no
-extra service. The known costs and the mitigations:
-
-| Cost | Mitigation |
+| File | What |
 | --- | --- |
-| A token in the browser | Fine-grained token, one private repo, Contents only, stored per device, never in code. Revocable per device. |
-| Every save is a commit | Local-first: answers save to localStorage instantly; GitHub gets one push per session (manual button, 15-minute auto-save, or when the app is hidden, with a 5-minute floor). |
-| Two devices can collide | The file is designed to merge without conflicts (below). A stale write (HTTP 409/422) re-pulls, re-merges and retries. |
-| Slower than a database | Only matters at load and save. Drills never wait on the network. |
-| Offline | Everything works offline; sync resumes later. |
+| `src/content/units.ts` | The 24 units, practice quizzes, chapter word lists |
+| `src/content/lessons/*.ts` | Per unit: before-checklist, key ideas, paradigms, concept questions |
+| `src/content/questions.ts` | Builds every kind of question from the above |
+| `src/content/generated/*.json` | From `npm run build:data`: NT forms per lemma, glosses and frequencies, readings per unit |
 
-If this ever becomes limiting (e.g. syncing on every answer), the store is
-isolated in `store.ts` + `sync.ts`, and swapping in Supabase touches only
-`sync.ts`.
+Drafted content is marked as such. An admin marks each part (key ideas,
+words, practice check) as checked; students only see checked parts.
+`lessons.test.ts` checks every paradigm form against forms that occur in
+the NT, so a typo in a table fails the tests.
 
-### Conflict-free merge
+### People and activity (Neon)
 
-`mergeProgress(a, b)` in `store.ts` (tested in `store.test.ts`):
+`server/migrations/001_init.sql`: invitations, users, cards (FSRS state per
+card), answers (every answer, for accuracy and "missed this week"), scores
+(every attempt), notes, unit_progress (checklist; a row means "opened"),
+content_status.
 
-- **cards**: newest `updatedAt` wins (a card is reviewed on one device at a time).
-- **stats**: counters are per device and only grow, so the merge takes the
-  max per device and totals are sums across devices (a grow-only counter
-  CRDT). Merging the same data twice never double-counts.
-- **sessions**: union by id.
+Answers and card updates go through an **outbox** in localStorage
+(`src/lib/api.ts`) and are sent in batches every 20 seconds, when the tab is
+hidden and when the connection returns. Nothing is lost on a flaky network.
 
-The merge is commutative and idempotent, so it does not matter which device
-syncs first or how often.
+## Questions
+
+- **Words**: flashcards (Greek to meaning), self-graded Again/Hard/Good/Easy.
+- **Paradigm cells**: "dat. pl. of λόγος?", multiple choice from the same column.
+- **Parsing**: real NT forms (MorphGNT), only cases taught by that unit;
+  forms with several valid readings (neuter nom./acc.) accept each one.
+- **Concepts**: multiple choice about the unit's ideas, with the reason.
+
+Practice check per unit: up to 12 mixed questions. Practice quizzes follow
+the syllabus quizzes (Q1 to Q5, exam), 20 questions over their units.
 
 ## Spaced repetition
 
-FSRS (the algorithm Anki now defaults to), via `ts-fsrs`, target retention
-90%. `srs.ts` converts its Date objects to JSON-friendly strings. Queue rules
-(`alphabet/cards.ts`): due reviews first, then new cards (daily limit,
-default 18 = one batch of six letters), then learning cards up to 20 minutes
-early so a session never stalls. Batches open automatically when every card
-of the previous batch has graduated.
+FSRS via `ts-fsrs`, target retention 90%. Review session (`views/review.ts`):
+cards due first, then up to 15 new a day, with a parse question every few
+cards weighted toward forms you have missed.
 
-## Pronunciation and audio
+## Pronunciation
 
-Erasmian, as in Mounce and at the seminary. Browser Greek voices speak
-modern Greek (η, ι, υ all "ee", β = v), so they are never used. Instead
-`lib/speech.ts` has an English voice read a phonetic respelling of the
-Erasmian pronunciation (`say` in `alphabet/data.ts`, e.g. θεός =
-"theh-OSS"), stressed where the Greek accent falls. The respelling is also
-shown on screen, which is the more reliable guide. Limits: synthetic
-voice, χ comes out as k, υ as "oo". Mounce's free recordings on
-billmounce.com remain the reference. A later option: record real audio
-(your own, or with permission a teacher's) as files in `public/audio/`.
+Erasmian. Browser Greek voices speak modern Greek, so an English voice reads
+the transliteration and the button says "approximate". Real recordings can
+replace it later as files in `public/audio/`.
 
-## Adding a module
+## The alphabet drills
 
-1. `src/modules/<name>/` with `data.ts` (+ `data.test.ts`) and one file per screen.
-2. Register routes in `src/main.ts`.
-3. Flip its tile to `ready: true` in `src/views/home.ts`.
-4. Reuse `components/mcround.ts` for any multiple-choice drill.
-5. Use a new id prefix for its cards and stats. No sync changes needed.
+The first version's alphabet module (`src/modules/alphabet/`) is kept as is,
+linked from unit 2. Its progress still lives in the browser
+(`src/lib/store.ts`), not in the database; moving it is a later step.
+
+## Adding a unit
+
+1. Fill in its words in `src/content/units.ts` (lemma exactly as MorphGNT),
+   set `drafted: true`.
+2. Add a `Lesson` in `src/content/lessons/`, register it in `index.ts`.
+3. `npm run build:data` (new words get NT forms and readings), `npm test`.
+4. Open it as admin, check, mark checked.

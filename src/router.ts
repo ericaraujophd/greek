@@ -1,27 +1,35 @@
 /**
- * router.ts: hash-based routing ("#/alphabet/speed").
+ * router.ts: hash-based routing with parameters ("#/unit/u06").
  *
  * WHY HASH ROUTES
- *   GitHub Pages is a plain file server. A URL like /greek/alphabet/speed
- *   would ask it for a file that does not exist and return 404. With
- *   /greek/#/alphabet/speed the server only ever sees /greek/, and the part
- *   after # is handled here in the browser. Bookmarks and the back button
- *   still work.
+ *   GitHub Pages is a plain file server. /greek/unit/u06 would be a 404; with
+ *   /greek/#/unit/u06 the server only ever sees /greek/ and the browser
+ *   handles the rest. Bookmarks and the back button still work.
+ *
+ * ROUTES
+ *   route('/unit/:id', view) registers a pattern; the view receives
+ *   { id: 'u06' }. Views return a DOM node, or a Promise of one when they
+ *   need to load data first (a "Loading…" placeholder shows meanwhile).
  *
  * KEYBOARD SHORTCUTS
- *   Drills use keys (1 to 4 for answers, space to flip a card). A screen
- *   registers its handler with setKeyHandler(); the router clears it on every
- *   route change so shortcuts never leak from one screen into the next.
+ *   A screen registers its key handler with setKeyHandler(); the router
+ *   clears it on every route change, so shortcuts never leak between screens.
+ *   Keys typed into form fields are never treated as shortcuts.
  */
 
-export type View = () => Node;
+export type Params = Record<string, string>;
+export type View = (params: Params) => Node | Promise<Node>;
 
-const routes = new Map<string, View>();
+interface Route { pattern: RegExp; keys: string[]; view: View; path: string }
+
+const routes: Route[] = [];
 let keyHandler: ((e: KeyboardEvent) => void) | null = null;
 let rerender: () => void = () => {};
 
 export function route(path: string, view: View): void {
-  routes.set(path, view);
+  const keys: string[] = [];
+  const pattern = new RegExp('^' + path.replace(/:([a-z]+)/g, (_, k) => { keys.push(k); return '([^/]+)'; }) + '$');
+  routes.push({ pattern, keys, view, path });
 }
 
 export function currentPath(): string {
@@ -29,35 +37,38 @@ export function currentPath(): string {
 }
 
 export function go(path: string): void {
-  location.hash = path;
+  if (currentPath() === path) rerender();
+  else location.hash = path;
 }
 
 export function setKeyHandler(fn: ((e: KeyboardEvent) => void) | null): void {
   keyHandler = fn;
 }
 
-/** Ask the router to draw the current screen again (after data changes). */
+/** Draw the current screen again (after data changes). */
 export function refresh(): void {
   rerender();
 }
 
-export function startRouter(render: (view: View, path: string) => void): void {
-  rerender = () => {
-    const path = currentPath();
-    const view = routes.get(path) ?? routes.get('/')!;
-    render(view, path);
-  };
+export function match(path: string): { route: Route; params: Params } | null {
+  for (const r of routes) {
+    const m = path.match(r.pattern);
+    if (m) return { route: r, params: Object.fromEntries(r.keys.map((k, i) => [k, decodeURIComponent(m[i + 1])])) };
+  }
+  return null;
+}
+
+export function startRouter(render: (path: string, found: ReturnType<typeof match>) => void): void {
+  rerender = () => render(currentPath(), match(currentPath()));
   window.addEventListener('hashchange', () => {
     keyHandler = null;
     rerender();
     window.scrollTo(0, 0);
   });
   document.addEventListener('keydown', (e) => {
-    // Never steal keys while the user types in a text field of a form
-    // (the typing drills handle their own input fields and opt in).
     const t = e.target as HTMLElement;
-    const inForm = t.closest('form, .no-shortcuts');
-    if (keyHandler && !inForm && !e.metaKey && !e.ctrlKey && !e.altKey) keyHandler(e);
+    if (t.closest('input, textarea, select, form, .no-shortcuts')) return;
+    if (keyHandler && !e.metaKey && !e.ctrlKey && !e.altKey) keyHandler(e);
   });
   rerender();
 }

@@ -1,70 +1,95 @@
 /**
- * Smoke test: every screen renders, each drill accepts an answer, and
- * progress is saved to localStorage. Screenshots land in test-results/
- * for a quick visual check.
+ * Smoke test of the whole site against a throwaway API (see
+ * playwright.config.ts): the admin signs in, opens every screen and answers
+ * a full practice check, invites a student; the student signs in; an
+ * uninvited address is refused. Screenshots land in test-results/.
  */
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
-test('home, alphabet hub and learn screen render', async ({ page }) => {
+async function devSignIn(page: Page, email: string) {
+  await page.goto('./#/login');
+  await page.getByLabel('Invited email').fill(email);
+  await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+}
+
+test('the whole site, as admin then student', async ({ page }) => {
   const errors: string[] = [];
   page.on('pageerror', (e) => errors.push(e.message));
+  const shot = (name: string) => page.screenshot({ path: `test-results/${name}.png`, fullPage: true });
+
   await page.goto('./');
-  await expect(page.getByRole('heading', { name: 'Suggested session' })).toBeVisible();
-  await page.screenshot({ path: 'test-results/home.png', fullPage: true });
+  await shot('01-front');
+
+  // Not invited: refused with a clear message.
+  await devSignIn(page, 'stranger@calvinseminary.edu');
+  await expect(page.getByText("hasn't been invited")).toBeVisible();
+  await shot('02-login-refused');
+
+  // Admin: always allowed.
+  await devSignIn(page, 'admin@calvinseminary.edu');
+  await expect(page.getByRole('heading', { name: 'Course map' })).toBeVisible();
+  await shot('03-dashboard');
+
+  // Open units 4 and 6 (this adds their words and tables to review).
+  await page.goto('./#/unit/u04');
+  await expect(page.locator('table.paradigm').first()).toBeVisible();
+  await shot('04-unit');
+  await page.goto('./#/unit/u06');
+  await expect(page.locator('table.paradigm').first()).toBeVisible();
+
+  // Practice check: answer everything with the first option / first chips.
+  await page.goto('./#/check/u06');
+  for (let i = 0; i < 12; i++) {
+    const chips = page.locator('.chips');
+    await page.locator('.qcard').waitFor();
+    if (await chips.count()) {
+      for (let r = 0; r < 3; r++) await chips.nth(r).locator('button.chip').first().click();
+      await page.getByRole('button', { name: 'Check' }).click();
+    } else {
+      await page.locator('button.opt').first().click();
+    }
+    await page.getByRole('button', { name: 'Next' }).click({ timeout: 3000 }).catch(() => { /* auto-advanced */ });
+    if (await page.getByRole('button', { name: 'Take it again' }).isVisible()) break;
+  }
+  await expect(page.getByRole('button', { name: 'Take it again' })).toBeVisible();
+  await shot('05-check-result');
+
+  // Review: reveal a word and rate it.
+  await page.goto('./#/review');
+  await expect(page.getByText('Daily review')).toBeVisible();
+  await shot('06-review');
+
+  // Reader: tap a word.
+  await page.goto('./#/read/u06');
+  await page.locator('.verse button.w').first().click();
+  await expect(page.locator('aside').getByText(/^from /)).toBeVisible();
+  await shot('07-reader');
+
+  await page.goto('./#/paradigms');
+  await page.getByRole('button', { name: 'Hide forms' }).click();
+  await shot('08-paradigms');
+
+  await page.goto('./#/notes');
+  await expect(page.getByRole('heading', { name: 'My notes' })).toBeVisible();
+
+  // Admin: invite a student.
+  await page.goto('./#/admin');
+  await page.getByLabel('Addresses to invite').fill('student@calvinseminary.edu');
+  await page.getByRole('button', { name: 'Invite' }).click();
+  await expect(page.getByRole('cell', { name: 'student@calvinseminary.edu' })).toBeVisible();
+  await shot('09-admin');
+
+  // Alphabet drills still work inside the new frame.
   await page.goto('./#/alphabet');
   await expect(page.getByRole('heading', { name: 'The alphabet' })).toBeVisible();
-  await page.screenshot({ path: 'test-results/hub.png', fullPage: true });
-  await page.goto('./#/alphabet/learn');
-  await page.getByRole('button', { name: 'lambda' }).click();
-  await expect(page.getByText('l as in law')).toBeVisible();
-  await page.screenshot({ path: 'test-results/learn.png', fullPage: true });
+  await shot('10-alphabet');
+
+  // Sign out; the student signs in and sees no admin link.
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await devSignIn(page, 'student@calvinseminary.edu');
+  await expect(page.getByRole('heading', { name: 'Course map' })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Admin' })).toHaveCount(0);
+  await shot('11-student-dashboard');
+
   expect(errors).toEqual([]);
-});
-
-test('flashcards: reveal and rate saves a card', async ({ page }) => {
-  await page.goto('./#/alphabet/cards');
-  await page.getByRole('button', { name: /Show answer/ }).click();
-  await page.screenshot({ path: 'test-results/cards-back.png', fullPage: true });
-  await page.keyboard.press('3');
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('greek.progress.v1') || '{}'));
-  expect(Object.keys(saved.cards)).toContain('alpha:alpha:read');
-});
-
-test('speed drill: answering records stats', async ({ page }) => {
-  await page.goto('./#/alphabet/speed');
-  await page.screenshot({ path: 'test-results/speed.png', fullPage: true });
-  await page.keyboard.press('1');
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem('greek.progress.v1') || '{}'));
-  expect(Object.keys(saved.stats).length).toBe(1);
-});
-
-test('look-alikes and sound-out render', async ({ page }) => {
-  await page.goto('./#/alphabet/lookalikes');
-  await page.keyboard.press('2');
-  await page.screenshot({ path: 'test-results/lookalikes.png', fullPage: true });
-  await page.goto('./#/alphabet/sound');
-  await page.getByLabel('Transliteration').fill('xyz');
-  await page.keyboard.press('Enter');
-  await expect(page.locator('.feedback.bad')).toBeVisible();
-  await page.screenshot({ path: 'test-results/sound.png', fullPage: true });
-});
-
-test('typing: Latin key becomes Greek', async ({ page }) => {
-  await page.goto('./#/alphabet/typing');
-  await page.getByLabel('Type the letter').press('u');
-  await expect(page.getByLabel('Type the letter')).toHaveValue('θ');
-  await page.screenshot({ path: 'test-results/typing.png', fullPage: true });
-  await page.getByRole('button', { name: 'Words from John 1' }).click();
-  await page.getByLabel('Type the Greek word').pressSequentially('logos');
-  await expect(page.getByLabel('Type the Greek word')).toHaveValue('λογοσ');
-  await page.keyboard.press('Enter');
-  await page.screenshot({ path: 'test-results/typing-words.png', fullPage: true });
-});
-
-test('stats and settings render', async ({ page }) => {
-  await page.goto('./#/stats');
-  await expect(page.getByRole('heading', { name: 'Letter accuracy' })).toBeVisible();
-  await page.goto('./#/settings');
-  await expect(page.getByLabel('Access token')).toBeVisible();
-  await page.screenshot({ path: 'test-results/settings.png', fullPage: true });
 });

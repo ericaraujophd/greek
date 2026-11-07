@@ -1,15 +1,20 @@
 /**
  * main.ts: application entry point.
  *
- * Builds the page frame (header, navigation, sync status), registers every
- * screen with the router, and starts background sync with GitHub.
+ * WHAT HAPPENS ON LOAD
+ *   1. Every screen is registered with the router (hash routes, see router.ts).
+ *   2. Public screens (front page, sign-in) draw straight away.
+ *   3. Any other screen needs a session: if there is a token, the student's
+ *      data is loaded once from the API (lib/progress.ts loadAll) and kept in
+ *      memory; if there is no token, or the server rejects it, we go to the
+ *      sign-in page.
+ *   4. Answers and card schedules are queued (lib/api.ts outbox) and sent in
+ *      the background; the queue is flushed every 20 seconds, when the tab is
+ *      hidden, and when the connection comes back.
  *
- * ADDING A NEW MODULE LATER (e.g. noun paradigms)
- *   1. Create src/modules/<name>/ with its data and views.
- *   2. Register its routes below with route('/<name>/...', view).
- *   3. Add a tile for it in src/views/home.ts (MODULES list).
- * Progress for every module lives in the same progress.json, keyed by
- * prefixes ("alpha:", "noun:", ...), so sync needs no changes.
+ * ADDING A SCREEN
+ *   Write a view in src/views/ that returns a Node (or a Promise of one) and
+ *   register it below with route('/path/:param', view).
  */
 import '@fontsource/gentium-book-plus/greek-400.css';
 import '@fontsource/gentium-book-plus/greek-700.css';
@@ -18,14 +23,22 @@ import '@fontsource/gentium-book-plus/latin-400.css';
 import './styles.css';
 
 import { h, mount } from './lib/dom';
-import { currentPath, route, startRouter, type View } from './router';
-import { currentSessionCount, isDirty, subscribe } from './lib/store';
-import { getSyncStatus, onSyncStatus, push, startAutoSync, type SyncStatus } from './lib/sync';
-import { syncConfigured } from './lib/settings';
+import { go, route, startRouter, type View } from './router';
+import { ApiError, flush, getToken, setOnUnauthorized, setToken } from './lib/api';
+import { loadAll, state } from './lib/progress';
+import { appHeader, errorBox, loading } from './components/layout';
 
-import { homeView } from './views/home';
-import { statsView } from './views/stats';
-import { settingsView } from './views/settings';
+import { frontView } from './views/front';
+import { loginView } from './views/login';
+import { dashboardView } from './views/dashboard';
+import { unitView } from './views/unit';
+import { reviewView } from './views/review';
+import { checkView, quizView } from './views/check';
+import { readerView } from './views/reader';
+import { paradigmsView } from './views/paradigms';
+import { notesView } from './views/notes';
+import { adminView } from './views/admin';
+
 import { alphabetHubView } from './modules/alphabet/hub';
 import { learnView } from './modules/alphabet/learn';
 import { flashcardsView } from './modules/alphabet/flashcards';
@@ -34,74 +47,95 @@ import { lookalikesView } from './modules/alphabet/lookalikes';
 import { typingView } from './modules/alphabet/typing';
 import { soundOutView } from './modules/alphabet/soundout';
 
-route('/', homeView);
-route('/alphabet', alphabetHubView);
-route('/alphabet/learn', learnView);
-route('/alphabet/cards', flashcardsView);
-route('/alphabet/speed', speedView);
-route('/alphabet/lookalikes', lookalikesView);
-route('/alphabet/typing', typingView);
-route('/alphabet/sound', soundOutView);
-route('/stats', statsView);
-route('/settings', settingsView);
+/** Screens anyone can see without signing in. */
+const PUBLIC = new Set(['/', '/login']);
+
+/**
+ * The alphabet drills were written for the first version of the site and
+ * draw only their own content. This wraps them in the app header and the
+ * `.alpha` container that keeps their older styles scoped.
+ */
+const alpha = (view: () => Node): View => () =>
+  h('div', {}, appHeader(), h('main', { class: 'page wrap alpha' },
+    h('p', { class: 'small' }, h('a', { href: '#/alphabet' }, 'Alphabet'), ' · ', h('a', { href: '#/unit/u02' }, 'Unit 2')),
+    view()));
+
+route('/', frontView);
+route('/login', loginView);
+route('/dashboard', dashboardView);
+route('/unit/:id', unitView);
+route('/review', reviewView);
+route('/check/:id', checkView);
+route('/quiz/:id', quizView);
+route('/read', readerView);
+route('/read/:unit', readerView);
+route('/paradigms', paradigmsView);
+route('/notes', notesView);
+route('/admin', adminView);
+route('/alphabet', alpha(alphabetHubView));
+route('/alphabet/learn', alpha(learnView));
+route('/alphabet/cards', alpha(flashcardsView));
+route('/alphabet/speed', alpha(speedView));
+route('/alphabet/lookalikes', alpha(lookalikesView));
+route('/alphabet/typing', alpha(typingView));
+route('/alphabet/sound', alpha(soundOutView));
 
 const app = document.getElementById('app')!;
-const headerSlot = h('div');
-const mainSlot = h('main', { class: 'wrap' });
-app.replaceChildren(headerSlot, mainSlot);
 
-/* ------------------------------ header ------------------------------ */
+/* ------------------------------ sign-in guard ------------------------------ */
 
-function syncLabel(s: SyncStatus): { text: string; cls: string; title: string } {
-  if (s.kind === 'off') return { text: 'Not syncing', cls: 'pill muted', title: 'Set up GitHub sync in Settings' };
-  if (s.kind === 'busy') return { text: s.what + '…', cls: 'pill busy', title: '' };
-  if (s.kind === 'error') return { text: 'Sync problem', cls: 'pill bad', title: s.message };
-  return isDirty()
-    ? { text: 'Unsaved', cls: 'pill warn', title: 'Changes not yet on GitHub' }
-    : { text: 'Saved', cls: 'pill good', title: s.lastSync ? `Last sync ${new Date(s.lastSync).toLocaleTimeString()}` : '' };
+let loaded: Promise<void> | null = null;
+
+/** Load the student's data once per page load (null when not signed in). */
+function ensureLoaded(): Promise<void> | null {
+  if (!getToken()) return null;
+  loaded ??= loadAll().catch((e) => { loaded = null; throw e; });
+  return loaded;
 }
 
-function renderHeader(): void {
-  const path = currentPath();
-  const link = (href: string, label: string) =>
-    h('a', { href: '#' + href, class: (href === '/' ? path === '/' : path.startsWith(href)) ? 'active' : '' }, label);
-  const s = syncLabel(getSyncStatus());
-  const count = currentSessionCount();
-  mount(headerSlot, h('header', { class: 'top' },
-    h('div', { class: 'wrap top-inner' },
-      h('a', { class: 'brand', href: '#/' }, h('span', { class: 'brand-mark greek' }, 'α'), 'Greek'),
-      h('nav', {}, link('/', 'Today'), link('/alphabet', 'Alphabet'), link('/stats', 'Progress'), link('/settings', 'Settings')),
-      h('div', { class: 'top-right' },
-        count > 0 ? h('span', { class: 'session-count', title: 'Answers this session' }, `${count} answer${count === 1 ? '' : 's'}`) : null,
-        h('span', { class: s.cls, title: s.title }, s.text),
-        syncConfigured() && isDirty()
-          ? h('button', { class: 'small', onclick: () => void push('Study session') }, 'Save to GitHub')
-          : null,
-      ),
-    ),
-  ));
-}
+// Any 401 from the API (expired session, revoked invitation): back to sign-in.
+setOnUnauthorized(() => {
+  setToken(null);
+  state.user = null;
+  loaded = null;
+  go('/login');
+});
 
 /* ------------------------------ render loop ------------------------------ */
 
-let currentView: View | null = null;
+let renderId = 0;
 
-startRouter((view) => {
-  currentView = view;
-  renderHeader();
-  mount(mainSlot, view());
-});
+startRouter(async (path, found) => {
+  const id = ++renderId; // a newer navigation wins over a slow older one
+  const show = (node: Node) => { if (id === renderId) mount(app, node); };
 
-// Header reflects every data change and sync event. The main area is NOT
-// re-rendered on data change (that would reset a drill mid-question); screens
-// that show live numbers refresh themselves.
-subscribe(renderHeader);
-onSyncStatus((s) => {
-  renderHeader();
-  // After a pull brings in new data, redraw passive screens (home, stats).
-  if (s.kind === 'idle' && currentView && ['/', '/stats', '/alphabet'].includes(currentPath())) {
-    mount(mainSlot, currentView());
+  if (!found) return show(h('div', {}, h('main', { class: 'page wrap' }, h('h1', {}, 'Not found'), h('a', { href: '#/' }, 'Front page'))));
+
+  if (!PUBLIC.has(path)) {
+    const pending = ensureLoaded();
+    if (!pending) return go('/login');
+    if (!state.user) show(loading());
+    try { await pending; } catch (e) {
+      if (e instanceof ApiError && e.status === 401) return; // handled above
+      return show(errorBox(`Could not reach the server (${(e as Error).message}). Is it running? See README: npm run dev.`));
+    }
+    if (path === '/admin' && state.user?.role !== 'admin') return go('/dashboard');
+  } else if (path === '/' && getToken()) {
+    // Signed in already: the front page still shows, with a link to the dashboard.
+    void ensureLoaded()?.catch(() => {});
+  }
+
+  try {
+    const node = found.route.view(found.params);
+    if (node instanceof Promise) { show(loading()); show(await node); } else show(node);
+  } catch (e) {
+    console.error(e);
+    show(errorBox((e as Error).message));
   }
 });
 
-startAutoSync();
+/* ------------------------------ background saving ------------------------------ */
+
+setInterval(() => void flush(), 20_000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') void flush(); });
+window.addEventListener('online', () => void flush());
