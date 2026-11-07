@@ -22,7 +22,7 @@ interface State {
   best: Map<string, { best: number; attempts: number }>;
   latest: Map<string, { correct: number; total: number; detail: any; taken_at: string }>;
   notes: Map<string, string>;
-  checklists: Map<string, Record<string, boolean>>;
+  checklists: Map<string, Record<string, string | boolean>>;
   status: Map<string, 'draft' | 'checked'>;
 }
 
@@ -101,7 +101,7 @@ export async function markStarted(unitId: string): Promise<void> {
   await api('PUT', `/api/unit-progress/${unitId}`, { checklist: {} });
 }
 
-export async function setChecklist(unitId: string, checklist: Record<string, boolean>): Promise<void> {
+export async function setChecklist(unitId: string, checklist: Record<string, string | boolean>): Promise<void> {
   state.checklists.set(unitId, checklist);
   await api('PUT', `/api/unit-progress/${unitId}`, { checklist });
 }

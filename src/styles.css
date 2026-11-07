@@ -110,7 +110,7 @@ kbd { font: 12px var(--ui); border: 1px solid var(--line); border-bottom-width: 
 .app-header { background: var(--surface); border-bottom: 1px solid var(--line); }
 .app-header .wrap { min-height: 64px; display: flex; flex-wrap: wrap; align-items: center; gap: 18px; }
 .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); font-weight: 700; }
-.brand-mark { display: inline-grid; place-items: center; width: 32px; height: 32px; border-radius: 9px; background: var(--navy); color: var(--saffron); font-family: var(--greek); font-size: 22px; padding-bottom: 3px; }
+.logo-mark { display: inline-flex; line-height: 0; }
 .app-nav { display: flex; flex-wrap: wrap; gap: 4px; }
 .app-nav a { text-decoration: none; padding: 8px 12px; border-radius: 8px; color: var(--ink-2); }
 .app-nav a:hover { background: var(--bg); color: var(--ink); }
@@ -290,3 +290,108 @@ footer.site a { color: var(--saffron); }
 .alpha button.small { min-height: 34px; padding: 0 10px; font-size: 13px; }
 .alpha .ratings button { flex-direction: column; }
 .alpha .letter-btn { min-height: 0; }
+
+/* ==========================================================================
+   Sign-in page (the front page): src/views/login.ts
+   Three quiet background layers behind the card:
+     .glow  two blurred colour patches (cobalt, saffron) drifting slowly
+     .grid  a faint dot grid that fades out toward the edges
+     .lines lines of John 1 in Greek sliding past at very low contrast,
+            alternating directions
+   Everything is decorative (aria-hidden) and stops for anyone whose device
+   asks for reduced motion.
+   ========================================================================== */
+.signin { position: relative; overflow: hidden; isolation: isolate; min-height: 100vh; background: var(--navy);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 28px; padding: 48px 16px; }
+.signin .glow { position: absolute; border-radius: 50%; filter: blur(90px); opacity: .55; z-index: -3; pointer-events: none; }
+.signin .g1 { width: 620px; height: 620px; background: #2f5bd3; left: -160px; top: -180px; animation: si-wander 38s ease-in-out infinite alternate; }
+.signin .g2 { width: 520px; height: 520px; background: #b8860b; right: -140px; bottom: -200px; opacity: .35; animation: si-wander 46s ease-in-out infinite alternate-reverse; }
+@keyframes si-wander { from { transform: translate(0, 0); } to { transform: translate(120px, 80px); } }
+.signin .grid { position: absolute; inset: 0; z-index: -2; pointer-events: none;
+  background-image: radial-gradient(rgba(195,205,230,.18) 1px, transparent 1px); background-size: 26px 26px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); mask-image: radial-gradient(ellipse at center, #000 30%, transparent 75%); }
+.signin .lines { position: absolute; inset: -20px 0; z-index: -1; pointer-events: none; display: flex; flex-direction: column; justify-content: space-between;
+  font-family: var(--greek); font-size: 30px; color: rgba(195,205,230,.07); white-space: nowrap;
+  -webkit-mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent); mask-image: linear-gradient(90deg, transparent, #000 20%, #000 80%, transparent); }
+.signin .line { display: flex; width: max-content; animation-timing-function: linear; animation-iteration-count: infinite; }
+.signin .line span { padding-right: 2em; }
+.signin .line.l { animation-name: si-left; }
+.signin .line.r { animation-name: si-right; }
+@keyframes si-left { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes si-right { from { transform: translateX(-50%); } to { transform: translateX(0); } }
+.signin .intro { display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.signin h1 { margin: 0; font-family: var(--serif); font-weight: 500; font-size: 40px; line-height: 1.15; color: #fff; }
+.signin .intro p { margin: 0; max-width: 460px; color: var(--on-navy); }
+.signin .card { width: 100%; max-width: 400px; background: #fff; border-radius: 18px; padding: 28px; display: flex; flex-direction: column; gap: 16px;
+  box-shadow: 0 30px 80px -20px rgba(5,10,30,.6), 0 0 0 1px rgba(255,255,255,.06); }
+.signin .dev { border-top: 1px dashed #c7d2ea; padding-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.signin .dev .lbl { font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: #b45309; }
+.signin .foot { margin: 0; font-size: 13px; color: var(--on-navy-2); text-align: center; max-width: 540px; }
+@media (prefers-reduced-motion: reduce) { .signin * { animation: none !important; } }
+
+/* ==========================================================================
+   Unit page: steps in order + notes beside them (src/views/unit.ts)
+   ========================================================================== */
+.unit-layout { display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 24px; align-items: start; }
+@media (max-width: 980px) { .unit-layout { grid-template-columns: 1fr; } }
+.step-bar { display: flex; gap: 6px; margin-top: 14px; }
+.step-bar i { flex: 1; height: 6px; border-radius: 99px; background: rgba(255,255,255,.15); }
+.step-bar i.on { background: var(--saffron); }
+.step-bar i.cur { background: #7fa0ff; }
+.steps { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.step { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; scroll-margin-top: 80px; }
+.step-head { all: unset; box-sizing: border-box; width: 100%; display: flex; align-items: center; gap: 14px; padding: 14px 18px; cursor: pointer; }
+.step-head:focus-visible { outline: 3px solid var(--cobalt); outline-offset: -3px; border-radius: 14px; }
+.step.current .step-head { cursor: default; }
+.step .st { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+.step .sub { font-size: 14px; color: var(--ink-2); }
+.step .num { width: 32px; height: 32px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; background: var(--bg); color: var(--ink-2); flex: none; }
+.step .num.done { background: var(--green); color: #fff; }
+.step .num.cur { background: var(--navy); color: var(--saffron); }
+.step.done { background: #f4faf7; border-color: #cde8db; }
+.step.done .st b { color: var(--green-ink); }
+.step .when { font-size: 13px; color: var(--green-ink); white-space: nowrap; }
+.step.later .step-head { opacity: .6; }
+.step.current { border: 2px solid var(--navy); box-shadow: 0 10px 30px -12px rgba(15,27,61,.25); }
+.pill.now { background: var(--saffron); color: var(--navy); font-weight: 700; }
+.step-body { padding: 0 20px 20px; display: flex; flex-direction: column; gap: 16px; }
+.step-actions { gap: 14px; align-items: center; }
+.next-unit { text-decoration: none; color: var(--ink); font-weight: 600; padding: 16px 18px; }
+
+/* Notes panel beside the steps (components/notesPanel.ts). */
+.notes-panel { position: sticky; top: 76px; background: var(--surface); border: 1px solid var(--line); border-radius: 16px; display: flex; flex-direction: column; overflow: hidden; }
+@media (max-width: 980px) { .notes-panel { position: static; } }
+.np-head { display: flex; align-items: baseline; gap: 8px; padding: 14px 16px; border-bottom: 1px solid var(--line-2); }
+.np-head b { font-family: var(--serif); font-size: 22px; font-weight: 500; }
+.np-head .saved { margin-left: auto; font-size: 12px; color: var(--green-ink); }
+.notes-area { border: 0; resize: vertical; min-height: 300px; height: 38vh; padding: 14px 16px; font: 16px/1.6 var(--greek); color: var(--ink); background: #fff; outline: none; }
+.notes-area.typing-greek { background: #fbfcff; box-shadow: inset 3px 0 0 var(--cobalt); }
+
+/* Greek keyboard (components/greekKeyboard.ts). */
+.gkb { background: #f3f6fd; border-top: 1px solid var(--line-2); padding: 12px; display: flex; flex-direction: column; gap: 6px; }
+.gkb-head { display: flex; align-items: center; font-size: 13px; color: var(--ink-2); margin-bottom: 2px; }
+.gkb-toggle { margin-left: auto; display: flex; align-items: center; gap: 8px; font-weight: 600; color: var(--ink); cursor: pointer; }
+.switch { all: unset; width: 36px; height: 20px; border-radius: 99px; background: #c7d2ea; position: relative; cursor: pointer; transition: background .15s; }
+.switch::after { content: ""; position: absolute; left: 2px; top: 2px; width: 16px; height: 16px; border-radius: 50%; background: #fff; transition: left .15s; }
+.switch[aria-checked="true"] { background: var(--cobalt); }
+.switch[aria-checked="true"]::after { left: 18px; }
+.switch:focus-visible { outline: 3px solid var(--cobalt); outline-offset: 2px; }
+.krow { display: flex; gap: 4px; justify-content: center; flex-wrap: wrap; }
+.k { min-width: 30px; height: 36px; padding: 0 4px; border-radius: 7px; background: #fff; border: 1px solid #d3dcef; box-shadow: 0 1px 0 #c7d2ea;
+  font: 19px var(--greek); color: var(--ink); cursor: pointer; }
+.k:hover { background: var(--cobalt-soft); }
+.k:active { transform: translateY(1px); box-shadow: none; }
+.k.wide { min-width: 42px; font: 15px Inter, sans-serif; }
+.k.wide.on { background: var(--navy); color: #fff; }
+.k.m { background: #fff8e6; border-color: #f0dca8; }
+.k.space { min-width: 70px; font: 13px Inter, sans-serif; color: var(--ink-2); }
+.gkb-help { margin: 4px 0 0; font-size: 12px; color: var(--ink-2); line-height: 1.6; }
+.gkb-help kbd { font: 11px Inter, sans-serif; background: #fff; border: 1px solid #d3dcef; border-radius: 4px; padding: 0 5px; }
+
+/* My notes page (src/views/notes.ts). */
+.note-sec { border-top: 1px dashed var(--line); padding-top: 10px; }
+.note-h { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 4px; }
+.note-t { white-space: pre-wrap; }
+.gr { font-family: var(--greek); font-size: 1.12em; color: var(--navy); background: var(--cobalt-soft); border-radius: 4px; padding: 0 2px; }
+mark { background: #ffe08a; border-radius: 3px; padding: 0; }
+mark .gr { background: transparent; }

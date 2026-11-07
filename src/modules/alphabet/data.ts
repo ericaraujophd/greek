@@ -5,8 +5,18 @@
  * by the seminary. It is NOT how Greek is spoken in Greece today (modern
  * Greek pronounces η, ι, υ, ει, οι all as "ee", β as "v", and so on). That
  * is why this app has no text-to-speech: browser Greek voices are modern
- * Greek and would teach the wrong sounds. Use Mounce's free vocabulary audio
- * for listening practice.
+ * Greek and would teach the wrong sounds. Instead an ENGLISH voice reads the
+ * respellings in `say` below (see lib/speech.ts), which approximate the
+ * Erasmian sounds; Mounce's own recordings remain the reference.
+ *
+ * RESPELLING RULES used in `say` (checked Nov 6, 2026):
+ *   ah = α (father)   eh = ε (met)    ay = η (obey)     ee = long ι
+ *   ih = short ι (sit)  o/oss = ο (not)  oh = ω (tone)   oo = υ (approximates ü)
+ *   oy = οι (oil)  hwee = υἱ (suite, with the rough breathing)  tau = αυ (cow)
+ *   Never "a" alone, which an English voice reads as in "cat".
+ *   The letter names follow their Greek spelling: ὦ μέγα has ε, so omega is
+ *   oh-MEH-gah; ἰῶτα has ω, so iota is ee-OH-tah. The rough breathing on
+ *   initial ρ is written (ῥῆμα, rhēma) but not pronounced, as in Mounce.
  *
  * The letters are split into four BATCHES of six, in alphabet order. The
  * learn screen and the flashcards introduce one batch at a time, so each
@@ -44,12 +54,12 @@ export interface Letter {
 export const LETTERS: Letter[] = [
   // ---------------- Batch 1: α β γ δ ε ζ ----------------
   { id: 'alpha', lower: 'α', upper: 'Α', name: 'alpha', translit: 'a', sound: 'a as in father',
-    example: { greek: 'ἀγάπη', translit: 'agapē', gloss: 'love' }, say: { name: 'AL-fah', example: 'ah-GAH-pay' }, batch: 1 },
+    example: { greek: 'ἀγάπη', translit: 'agapē', gloss: 'love' }, say: { name: 'AHL-fah', example: 'ah-GAH-pay' }, batch: 1 },
   { id: 'beta', lower: 'β', upper: 'Β', name: 'beta', translit: 'b', sound: 'b as in Bible',
     example: { greek: 'βίβλος', translit: 'biblos', gloss: 'book' }, say: { name: 'BAY-tah', example: 'BIB-loss' }, batch: 1 },
   { id: 'gamma', lower: 'γ', upper: 'Γ', name: 'gamma', translit: 'g', sound: 'g as in gone',
     note: 'Lowercase γ hangs below the line and looks like an English y. Before γ, κ, ξ or χ it sounds like n ("gamma nasal"): ἄγγελος = angelos.',
-    example: { greek: 'γραφή', translit: 'graphē', gloss: 'writing, Scripture' }, say: { name: 'GAM-mah', example: 'grah-FAY' }, batch: 1 },
+    example: { greek: 'γραφή', translit: 'graphē', gloss: 'writing, Scripture' }, say: { name: 'GAHM-mah', example: 'grah-FAY' }, batch: 1 },
   { id: 'delta', lower: 'δ', upper: 'Δ', name: 'delta', translit: 'd', sound: 'd as in dog',
     example: { greek: 'δόξα', translit: 'doxa', gloss: 'glory' }, say: { name: 'DEL-tah', example: 'DOX-ah' }, batch: 1 },
   { id: 'epsilon', lower: 'ε', upper: 'Ε', name: 'epsilon', translit: 'e', sound: 'e as in met',
@@ -69,7 +79,7 @@ export const LETTERS: Letter[] = [
     note: 'No dot on top. Can be written under a vowel as a small "iota subscript" (ᾳ, ῃ, ῳ), which is not pronounced.',
     example: { greek: 'ἱερόν', translit: 'hieron', gloss: 'temple' }, say: { name: 'ee-OH-tah', example: 'hee-eh-RON' }, batch: 2 },
   { id: 'kappa', lower: 'κ', upper: 'Κ', name: 'kappa', translit: 'k', sound: 'k as in kitchen',
-    example: { greek: 'κύριος', translit: 'kurios', gloss: 'Lord' }, say: { name: 'KAP-pah', example: 'KOO-ree-oss' }, batch: 2 },
+    example: { greek: 'κύριος', translit: 'kurios', gloss: 'Lord' }, say: { name: 'KAHP-pah', example: 'KOO-ree-oss' }, batch: 2 },
   { id: 'lambda', lower: 'λ', upper: 'Λ', name: 'lambda', translit: 'l', sound: 'l as in law',
     example: { greek: 'λόγος', translit: 'logos', gloss: 'word' }, say: { name: 'LAHMB-dah', example: 'LOG-oss' }, batch: 2 },
   { id: 'mu', lower: 'μ', upper: 'Μ', name: 'mu', translit: 'm', sound: 'm as in mother',
@@ -89,14 +99,14 @@ export const LETTERS: Letter[] = [
     example: { greek: 'πίστις', translit: 'pistis', gloss: 'faith' }, say: { name: 'pee', example: 'PISS-tiss' }, batch: 3 },
   { id: 'rho', lower: 'ρ', upper: 'Ρ', name: 'rho', translit: 'r', sound: 'r as in rod',
     note: 'Lowercase ρ looks like an English p, but it is an r. The capital Ρ looks like P.',
-    example: { greek: 'ῥῆμα', translit: 'rhēma', gloss: 'word, saying' }, say: { name: 'hroh', example: 'HRAY-mah' }, batch: 3 },
+    example: { greek: 'ῥῆμα', translit: 'rhēma', gloss: 'word, saying' }, say: { name: 'roh', example: 'RAY-mah' }, batch: 3 },
   { id: 'sigma', lower: 'σ', upper: 'Σ', name: 'sigma', translit: 's', sound: 's as in study',
     note: 'Two lowercase forms: σ in the middle of a word, ς at the end (λόγος).',
     example: { greek: 'σῶμα', translit: 'sōma', gloss: 'body' }, say: { name: 'SIG-mah', example: 'SO-mah' }, batch: 3 },
 
   // ---------------- Batch 4: τ υ φ χ ψ ω ----------------
   { id: 'tau', lower: 'τ', upper: 'Τ', name: 'tau', translit: 't', sound: 't as in talk',
-    example: { greek: 'τέκνον', translit: 'teknon', gloss: 'child' }, say: { name: 'tah-oo', example: 'TEK-non' }, batch: 4 },
+    example: { greek: 'τέκνον', translit: 'teknon', gloss: 'child' }, say: { name: 'tau', example: 'TEK-non' }, batch: 4 },
   { id: 'upsilon', lower: 'υ', upper: 'Υ', name: 'upsilon', translit: 'u', sound: 'u as in the French tu or German ü',
     note: 'Rounded at the bottom (υ), unlike nu (ν), which comes to a point. The capital Υ looks like Y.',
     example: { greek: 'υἱός', translit: 'huios', gloss: 'son' }, say: { name: 'OOP-sih-lon', example: 'hwee-OSS' }, batch: 4 },
@@ -109,7 +119,7 @@ export const LETTERS: Letter[] = [
     example: { greek: 'ψυχή', translit: 'psuchē', gloss: 'soul, life' }, say: { name: 'psee', example: 'psoo-KAY' }, batch: 4 },
   { id: 'omega', lower: 'ω', upper: 'Ω', name: 'omega', translit: 'ō', sound: 'o as in tone',
     note: 'Long o. Looks like an English w, but it is a vowel. Compare omicron ο, the short o.',
-    example: { greek: 'ὥρα', translit: 'hōra', gloss: 'hour' }, say: { name: 'oh-MAY-gah', example: 'HO-rah' }, batch: 4 },
+    example: { greek: 'ὥρα', translit: 'hōra', gloss: 'hour' }, say: { name: 'oh-MEH-gah', example: 'HOH-rah' }, batch: 4 },
 ];
 
 /** Look up a letter by id. Throws on a typo so bugs surface immediately. */

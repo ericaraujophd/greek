@@ -17,7 +17,7 @@
  * switches to any unit that has readings.
  */
 import { h, mount } from '../lib/dom';
-import { appHeader, listenButton } from '../components/layout';
+import { appHeader } from '../components/layout';
 import { isStarted } from '../lib/progress';
 import { LEXICON } from '../content/questions';
 import { UNITS, unitById, wordsThrough } from '../content/units';
@@ -91,7 +91,7 @@ export function readerView(params: { unit?: string }): Node {
     const lex = LEXICON[lemma];
     const form = text.replace(/[.,;·:]/g, '');
     mount(panel, h('div', { class: 'stack fade-in', style: 'gap:8px' },
-      h('div', { class: 'row', style: 'align-items:center' }, h('span', { class: 'greek', style: 'font-size:34px' }, form), listenButton(form)),
+      h('div', { class: 'row', style: 'align-items:center' }, h('span', { class: 'greek', style: 'font-size:34px' }, form)),
       h('div', { class: 'small' }, describeParse(pos, parse)),
       h('div', {}, 'from ', h('b', { class: 'greek', style: 'font-size:20px' }, lemma)),
       course

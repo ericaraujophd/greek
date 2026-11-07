@@ -201,7 +201,7 @@ export function createApp(db: Db, env: Env) {
   }));
 
   me.put('/unit-progress/:unit', async (c) => {
-    const { checklist } = await c.req.json<{ checklist: Record<string, boolean> }>();
+    const { checklist } = await c.req.json<{ checklist: Record<string, string | boolean> }>();
     await db.query(
       `INSERT INTO unit_progress (user_id, unit_id, checklist, updated_at) VALUES ($1, $2, $3, now())
        ON CONFLICT (user_id, unit_id) DO UPDATE SET checklist = EXCLUDED.checklist, updated_at = now()`,

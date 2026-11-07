@@ -23,7 +23,7 @@ export default defineConfig({
   plugins: [
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icon.svg'],
+      includeAssets: ['icon.svg', 'favicon-32.png', 'apple-touch-icon.png', 'icon-512.png'],
       manifest: {
         name: 'Greek Companion',
         short_name: 'Greek',
@@ -33,7 +33,10 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/greek/',
         scope: '/greek/',
-        icons: [{ src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' }],
+        icons: [
+          { src: 'icon.svg', sizes: 'any', type: 'image/svg+xml', purpose: 'any' },
+          { src: 'icon-512.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+        ],
       },
       workbox: {
         // Cache fonts too, so Greek renders offline.

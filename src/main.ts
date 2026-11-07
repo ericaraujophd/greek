@@ -28,7 +28,6 @@ import { ApiError, flush, getToken, setOnUnauthorized, setToken } from './lib/ap
 import { loadAll, state } from './lib/progress';
 import { appHeader, errorBox, loading } from './components/layout';
 
-import { frontView } from './views/front';
 import { loginView } from './views/login';
 import { dashboardView } from './views/dashboard';
 import { unitView } from './views/unit';
@@ -60,7 +59,7 @@ const alpha = (view: () => Node): View => () =>
     h('p', { class: 'small' }, h('a', { href: '#/alphabet' }, 'Alphabet'), ' · ', h('a', { href: '#/unit/u02' }, 'Unit 2')),
     view()));
 
-route('/', frontView);
+route('/', loginView); // the front page is the sign-in page
 route('/login', loginView);
 route('/dashboard', dashboardView);
 route('/unit/:id', unitView);
@@ -109,7 +108,7 @@ startRouter(async (path, found) => {
   const id = ++renderId; // a newer navigation wins over a slow older one
   const show = (node: Node) => { if (id === renderId) mount(app, node); };
 
-  if (!found) return show(h('div', {}, h('main', { class: 'page wrap' }, h('h1', {}, 'Not found'), h('a', { href: '#/' }, 'Front page'))));
+  if (!found) return show(h('div', {}, h('main', { class: 'page wrap' }, h('h1', {}, 'Not found'), h('a', { href: '#/dashboard' }, 'Dashboard'))));
 
   if (!PUBLIC.has(path)) {
     const pending = ensureLoaded();
@@ -120,9 +119,9 @@ startRouter(async (path, found) => {
       return show(errorBox(`Could not reach the server (${(e as Error).message}). Is it running? See README: npm run dev.`));
     }
     if (path === '/admin' && state.user?.role !== 'admin') return go('/dashboard');
-  } else if (path === '/' && getToken()) {
-    // Signed in already: the front page still shows, with a link to the dashboard.
-    void ensureLoaded()?.catch(() => {});
+  } else if (getToken()) {
+    // Already signed in: skip the sign-in page and go to the dashboard.
+    return go('/dashboard');
   }
 
   try {

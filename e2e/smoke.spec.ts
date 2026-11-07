@@ -32,10 +32,25 @@ test('the whole site, as admin then student', async ({ page }) => {
 
   // Open units 4 and 6 (this adds their words and tables to review).
   await page.goto('./#/unit/u04');
-  await expect(page.locator('table.paradigm').first()).toBeVisible();
+  await expect(page.locator('.step.current')).toBeVisible();
   await shot('04-unit');
   await page.goto('./#/unit/u06');
+  // Steps in order: reading is "Now"; confirming it moves "Now" to the video.
+  await expect(page.locator('.step.current')).toContainText('Read the first half of Mounce ch. 7');
+  await page.getByLabel('Notes for Unit 6').click();
+  await page.keyboard.type('Genitive = of. ');
+  // Type Greek on: logos with an acute on the omicron ("lo/gos" -> λόγος, final sigma).
+  await page.getByRole('switch', { name: 'Type Greek with my keyboard' }).click();
+  await page.keyboard.type('lo/gos ');
+  await expect(page.getByLabel('Notes for Unit 6')).toHaveValue(/## 1 · Read the first half of Mounce ch\. 7\nGenitive = of\. λόγος $/);
+  await page.getByRole('switch', { name: 'Type Greek with my keyboard' }).click();
+  await page.getByRole('button', { name: "I've read it" }).click();
+  await expect(page.locator('.step.current')).toContainText('Watch the chapter overview');
+  await expect(page.locator('#step-read')).toContainText('Read today');
+  // Any step can be opened, even out of order.
+  await page.locator('#step-paradigms .step-head').click();
   await expect(page.locator('table.paradigm').first()).toBeVisible();
+  await shot('04b-unit-steps');
 
   // Practice check: answer everything with the first option / first chips.
   await page.goto('./#/check/u06');
@@ -71,6 +86,10 @@ test('the whole site, as admin then student', async ({ page }) => {
 
   await page.goto('./#/notes');
   await expect(page.getByRole('heading', { name: 'My notes' })).toBeVisible();
+  // Accent-insensitive search finds the Greek typed above.
+  await page.getByLabel('Search notes').fill('λογος');
+  await expect(page.locator('mark')).toHaveText('λόγος');
+  await shot('08b-notes-search');
 
   // Admin: invite a student.
   await page.goto('./#/admin');

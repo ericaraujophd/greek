@@ -1,5 +1,14 @@
 /**
- * login.ts: the sign-in page.
+ * login.ts: the sign-in page, which is also the front page (#/ and #/login).
+ *
+ * WHAT IS ON IT (approved mockup, Nov 6 2026)
+ *   The logo, the name, one line saying this is a personal, unofficial tool,
+ *   the sign-in card, and a footer saying it is not affiliated with the
+ *   seminary or the publisher. Nothing else: no marketing, no tour.
+ *   Behind it, three quiet decorative layers (styles.css, "Sign-in page").
+ *
+ * If you are already signed in, #/ sends you straight to the dashboard
+ * (see main.ts).
  *
  * GOOGLE SIGN-IN
  *   Loads Google Identity Services and renders Google's own button. When the
@@ -15,7 +24,7 @@
 import { h, mount } from '../lib/dom';
 import { api, setToken } from '../lib/api';
 import { go } from '../router';
-import { brand } from '../components/layout';
+import { logoMark } from '../components/logo';
 
 interface Config { googleClientId: string | null; devLogin: boolean; allowedDomain: string }
 
@@ -43,7 +52,7 @@ function loadGoogle(): Promise<void> {
 }
 
 export function loginView(): Node {
-  const status = h('div', { role: 'status', class: 'small', style: 'min-height:22px' });
+  const status = h('div', { role: 'status', class: 'small' });
   const googleSlot = h('div', { style: 'min-height:44px' });
   const devSlot = h('div', {});
 
@@ -67,16 +76,16 @@ export function loginView(): Node {
             } catch (e) { showError((e as Error).message); }
           },
         });
-        window.google.accounts.id.renderButton(googleSlot, { theme: 'outline', size: 'large', text: 'continue_with', width: 320 });
+        window.google.accounts.id.renderButton(googleSlot, { theme: 'outline', size: 'large', text: 'continue_with', shape: 'rectangular', width: 344 });
       } catch (e) { showError((e as Error).message); }
     } else {
       mount(googleSlot, h('p', { class: 'small muted' }, 'Google sign-in is not set up on this server yet.'));
     }
 
     if (cfg.devLogin) {
-      const input = h('input', { class: 'text', type: 'email', placeholder: `name@${cfg.allowedDomain}`, 'aria-label': 'Invited email', style: 'flex:1' }) as HTMLInputElement;
+      const input = h('input', { class: 'text', type: 'email', placeholder: `name@${cfg.allowedDomain}`, 'aria-label': 'Invited email', style: 'flex:1;min-width:0' }) as HTMLInputElement;
       mount(devSlot, h('form', {
-        class: 'stack', style: 'gap:8px;border:1px dashed #c7d2ea;border-radius:12px;padding:14px',
+        class: 'dev',
         onsubmit: async (e: Event) => {
           e.preventDefault();
           try {
@@ -85,26 +94,48 @@ export function loginView(): Node {
           } catch (err) { showError((err as Error).message); }
         },
       },
-        h('b', { class: 'small' }, 'Developer sign-in (local only)'),
-        h('div', { class: 'row' }, input, h('button', { class: 'btn', type: 'submit' }, 'Sign in'))));
+        h('span', { class: 'lbl' }, 'Developer sign-in · only on your Mac'),
+        h('div', { class: 'row', style: 'gap:8px;flex-wrap:nowrap' }, input, h('button', { class: 'btn primary', type: 'submit' }, 'Sign in'))));
     }
   })();
 
-  return h('div', { style: 'min-height:100vh;display:flex;flex-wrap:wrap' },
-    h('div', { style: 'position:relative;overflow:hidden;flex:1 1 440px;background:var(--navy);color:#eef2fb;padding:48px;display:flex;flex-direction:column;justify-content:space-between;gap:32px;min-height:320px' },
-      (() => { const b = brand('#/'); b.style.color = '#fff'; (b.firstChild as HTMLElement).style.background = 'var(--saffron)'; (b.firstChild as HTMLElement).style.color = 'var(--navy)'; return b; })(),
-      h('div', { class: 'stack' },
-        h('p', { class: 'greek', style: 'margin:0;font-size:44px;line-height:1.3;color:var(--saffron)' }, 'καὶ ὁ λόγος σὰρξ ἐγένετο'),
-        h('p', { style: 'margin:0;color:var(--on-navy)' }, '"And the Word became flesh." John 1:14')),
-      h('span', { class: 'small', style: 'color:var(--on-navy-2)' }, 'An independent study tool for Greek Fundamentals I. Invitation only.')),
-    h('div', { style: 'flex:1 1 440px;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:48px 24px' },
-      h('div', { class: 'stack', style: 'width:100%;max-width:400px;gap:20px' },
-        h('div', {},
-          h('h1', { class: 'serif', style: 'margin:0;font-size:38px' }, 'Sign in'),
-          h('p', { class: 'muted', style: 'margin:8px 0 0' }, 'This tool is open by invitation. Use the seminary Google account your invitation was for. Your work is saved to your account, so you can switch between laptop, tablet and phone.')),
-        googleSlot,
-        devSlot,
-        status,
-        h('p', { class: 'tiny muted', style: 'margin:0' }, 'We store your name, email and study progress, nothing else.'),
-        h('a', { href: '#/', class: 'small' }, 'Back to the front page'))));
+  return h('div', { class: 'signin' },
+    // Decorative background (hidden from screen readers).
+    h('div', { class: 'glow g1', 'aria-hidden': 'true' }),
+    h('div', { class: 'glow g2', 'aria-hidden': 'true' }),
+    h('div', { class: 'grid', 'aria-hidden': 'true' }),
+    h('div', { class: 'lines', 'aria-hidden': 'true' }, ...backgroundLines()),
+
+    h('div', { class: 'intro' },
+      logoMark(64),
+      h('h1', {}, 'Greek Companion'),
+      h('p', {}, 'A personal, unofficial study companion, made for my own study of Greek Fundamentals I at Calvin Theological Seminary alongside Mounce, ',
+        h('i', {}, 'Basics of Biblical Greek'), '.')),
+
+    h('div', { class: 'card' }, googleSlot, devSlot, status),
+
+    h('p', { class: 'foot' },
+      'A personal tool for personal use. Unofficial: not affiliated with or endorsed by Calvin Theological Seminary or Zondervan. Greek text: SBLGNT via MorphGNT (CC BY-SA).'));
+}
+
+/* ------------------------------------------------------------------------ */
+/* Background text: John 1:1 to 5 and 1:14, one verse-part per line, nine    */
+/* lines. Each line holds its text twice so it can slide by half its width   */
+/* and loop without a jump. Lines alternate direction and speed.             */
+/* ------------------------------------------------------------------------ */
+const JOHN = [
+  'Ἐν ἀρχῇ ἦν ὁ λόγος, καὶ ὁ λόγος ἦν πρὸς τὸν θεόν, καὶ θεὸς ἦν ὁ λόγος.',
+  'οὗτος ἦν ἐν ἀρχῇ πρὸς τὸν θεόν. πάντα δι’ αὐτοῦ ἐγένετο,',
+  'ἐν αὐτῷ ζωὴ ἦν, καὶ ἡ ζωὴ ἦν τὸ φῶς τῶν ἀνθρώπων·',
+  'καὶ τὸ φῶς ἐν τῇ σκοτίᾳ φαίνει, καὶ ἡ σκοτία αὐτὸ οὐ κατέλαβεν.',
+  'καὶ ὁ λόγος σὰρξ ἐγένετο καὶ ἐσκήνωσεν ἐν ἡμῖν,',
+  'πλήρης χάριτος καὶ ἀληθείας.',
+];
+
+function backgroundLines(): HTMLElement[] {
+  return Array.from({ length: 9 }, (_, i) => {
+    const text = `${JOHN[i % JOHN.length]}   `.repeat(4);
+    return h('div', { class: `line ${i % 2 ? 'r' : 'l'}`, style: `animation-duration:${140 + ((i * 23) % 60)}s` },
+      h('span', {}, text), h('span', {}, text));
+  });
 }
