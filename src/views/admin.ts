@@ -12,6 +12,8 @@
  *                practice quiz scores; make someone an admin or not.
  *   Content      for every drafted unit, whether key ideas, words and the
  *                practice check are checked. Students only see checked parts.
+ *   Recordings   students' offered recordings to accept or decline, and the
+ *                list of words still to record (views/adminRecordings.ts).
  */
 import { h, mount } from '../lib/dom';
 import { appHeader, errorBox, loading, scoreColor } from '../components/layout';
@@ -19,6 +21,7 @@ import { api } from '../lib/api';
 import { state } from '../lib/progress';
 import { QUIZZES, UNITS } from '../content/units';
 import { refresh } from '../router';
+import { recordingsSection } from './adminRecordings';
 
 const PARTS = [['ideas', 'Key ideas & tables'], ['words', 'Words'], ['check', 'Practice check']] as const;
 
@@ -32,10 +35,10 @@ function when(iso: string | null): string {
 export async function adminView(): Promise<Node> {
   const main = h('main', { class: 'page wrap stack fade-in', style: 'gap:24px' }, loading());
   const page = h('div', {}, appHeader(), main);
-  let summary: any, students: any, invites: any;
+  let summary: any, students: any, invites: any, recordings: HTMLElement;
   try {
-    [summary, students, invites] = await Promise.all([
-      api('GET', '/api/admin/summary'), api('GET', '/api/admin/students'), api('GET', '/api/admin/invitations')]);
+    [summary, students, invites, recordings] = await Promise.all([
+      api('GET', '/api/admin/summary'), api('GET', '/api/admin/students'), api('GET', '/api/admin/invitations'), recordingsSection()]);
   } catch (e) {
     mount(main, errorBox((e as Error).message));
     return page;
@@ -124,6 +127,8 @@ export async function adminView(): Promise<Node> {
       h('p', { class: 'small muted', style: 'margin:0' }, 'Students see a part of a unit only after it is ticked here (or on the unit page).'),
       h('div', { style: 'overflow-x:auto' }, h('table', { class: 'admin' },
         h('thead', {}, h('tr', {}, h('th', {}, 'Unit'), ...PARTS.map(([, label]) => h('th', {}, label)))),
-        h('tbody', {}, ...contentRows))))));
+        h('tbody', {}, ...contentRows)))),
+
+    recordings!));
   return page;
 }

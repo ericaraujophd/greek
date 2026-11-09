@@ -126,3 +126,36 @@ describe('recorded audio', () => {
     expect((await call('GET', `/api/audio/${key}`, undefined, student)).status).toBe(404);
   });
 });
+
+describe('students recording and submitting', () => {
+  it('a student records privately, submits, and the admin accepts', async () => {
+    const admin = (await devLogin('efer251@calvinseminary.edu')).json.token;
+    await call('POST', '/api/admin/invitations', { emails: 'reader@calvinseminary.edu, other@calvinseminary.edu' }, admin);
+    const student = (await devLogin('reader@calvinseminary.edu')).json.token;
+    const other = (await devLogin('other@calvinseminary.edu')).json.token;
+    const key = encodeURIComponent('word:ἀγάπη');
+    const clip = { mime: 'audio/mp4', data: btoa('student take') };
+
+    expect((await call('POST', `/api/audio/mine/${key}/submit`, {}, student)).status).toBe(400); // nothing recorded yet
+    expect((await call('PUT', `/api/audio/mine/${key}`, clip, student)).status).toBe(200);
+    // Private: another student does not see it.
+    expect((await call('GET', `/api/audio/mine/${key}`, undefined, other)).status).toBe(404);
+    expect((await call('GET', `/api/audio/mine/${key}`, undefined, student)).json.data).toBe(clip.data);
+
+    expect((await call('POST', `/api/audio/mine/${key}/submit`, {}, student)).status).toBe(200);
+    const mine = await call('GET', '/api/audio/mine', undefined, student);
+    expect(mine.json.mine[0]).toMatchObject({ key: 'word:ἀγάπη', submitted: 'pending' });
+
+    // Students cannot review submissions.
+    expect((await call('GET', '/api/admin/audio-submissions', undefined, student)).status).toBe(403);
+    const subs = await call('GET', '/api/admin/audio-submissions', undefined, admin);
+    const sub = subs.json.submissions.find((x: any) => x.key === 'word:ἀγάπη');
+    expect(sub.email).toBe('reader@calvinseminary.edu');
+    expect((await call('POST', `/api/admin/audio-submissions/${sub.id}/accept`, {}, admin)).status).toBe(200);
+
+    // Now everyone hears it, credited to the student.
+    const shared = await call('GET', '/api/audio', undefined, other);
+    expect(shared.json.audio.find((a: any) => a.key === 'word:ἀγάπη').recorded_by).toBe('reader');
+    expect((await call('GET', '/api/audio/mine', undefined, student)).json.mine[0].submitted).toBe('accepted');
+  });
+});

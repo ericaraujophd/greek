@@ -241,6 +241,63 @@ export function createApp(db: Db, env: Env) {
   const MAX_AUDIO_BYTES = 400_000;
   const AUDIO_KEY = /^(word|letter):[^\s]{1,60}$/u;
 
+  /** Check an uploaded clip; returns an error message, or null when fine. */
+  function badClip(key: string, mime: unknown, data: unknown): string | null {
+    if (!AUDIO_KEY.test(key)) return 'Bad audio key.';
+    if (typeof mime !== 'string' || !/^audio\/[\w.+-]+(;.*)?$/.test(mime)) return 'Not an audio type.';
+    if (typeof data !== 'string' || !/^[A-Za-z0-9+/]+=*$/.test(data)) return 'Audio must be base64.';
+    if (Math.floor((data.length * 3) / 4) > MAX_AUDIO_BYTES) return 'Recording too long.';
+    return null;
+  }
+  const clipBytes = (data: string) => Math.floor((data.length * 3) / 4);
+
+  /* --- your own recordings (private), to compare with the shared one --- */
+  // Registered before /audio/:key so "mine" is not taken for a key.
+
+  me.get('/audio/mine', async (c) => c.json({
+    mine: await db.query(
+      `SELECT m.key, m.updated_at,
+              (SELECT s.status FROM audio_submissions s WHERE s.user_id = m.user_id AND s.key = m.key
+                ORDER BY s.created_at DESC LIMIT 1) AS submitted
+         FROM audio_mine m WHERE m.user_id = $1 ORDER BY m.key`, [c.get('user').id]),
+  }));
+
+  me.get('/audio/mine/:key', async (c) => {
+    const rows = await db.query<{ mime: string; data: string }>(
+      'SELECT mime, data FROM audio_mine WHERE user_id = $1 AND key = $2', [c.get('user').id, c.req.param('key')]);
+    if (!rows[0]) return c.json({ error: 'No recording yet.' }, 404);
+    return c.json(rows[0]);
+  });
+
+  me.put('/audio/mine/:key', async (c) => {
+    const key = c.req.param('key');
+    const { mime, data } = await c.req.json<{ mime: string; data: string }>();
+    const bad = badClip(key, mime, data);
+    if (bad) return c.json({ error: bad }, bad === 'Recording too long.' ? 413 : 400);
+    await db.query(
+      `INSERT INTO audio_mine (user_id, key, mime, data, bytes, updated_at) VALUES ($1, $2, $3, $4, $5, now())
+       ON CONFLICT (user_id, key) DO UPDATE SET mime = EXCLUDED.mime, data = EXCLUDED.data, bytes = EXCLUDED.bytes, updated_at = now()`,
+      [c.get('user').id, key, mime, data, clipBytes(data)]);
+    return c.json({ ok: true });
+  });
+
+  me.delete('/audio/mine/:key', async (c) => {
+    await db.query('DELETE FROM audio_mine WHERE user_id = $1 AND key = $2', [c.get('user').id, c.req.param('key')]);
+    return c.json({ ok: true });
+  });
+
+  /** Offer your recording as the shared one. Replaces your own earlier pending offer for the same key. */
+  me.post('/audio/mine/:key/submit', async (c) => {
+    const uid = c.get('user').id, key = c.req.param('key');
+    const rows = await db.query<{ mime: string; data: string; bytes: number }>(
+      'SELECT mime, data, bytes FROM audio_mine WHERE user_id = $1 AND key = $2', [uid, key]);
+    if (!rows[0]) return c.json({ error: 'Record it first.' }, 400);
+    await db.query("DELETE FROM audio_submissions WHERE user_id = $1 AND key = $2 AND status = 'pending'", [uid, key]);
+    await db.query('INSERT INTO audio_submissions (user_id, key, mime, data, bytes) VALUES ($1, $2, $3, $4, $5)',
+      [uid, key, rows[0].mime, rows[0].data, rows[0].bytes]);
+    return c.json({ ok: true });
+  });
+
   me.get('/audio', async (c) => c.json({
     audio: await db.query('SELECT key, recorded_by, bytes, updated_at FROM audio ORDER BY key'),
   }));
@@ -319,12 +376,10 @@ export function createApp(db: Db, env: Env) {
 
   admin.put('/audio/:key', async (c) => {
     const key = c.req.param('key');
-    if (!AUDIO_KEY.test(key)) return c.json({ error: 'Bad audio key.' }, 400);
     const { mime, data } = await c.req.json<{ mime: string; data: string }>();
-    if (!/^audio\/[\w.+-]+(;.*)?$/.test(mime ?? '')) return c.json({ error: 'Not an audio type.' }, 400);
-    if (typeof data !== 'string' || !/^[A-Za-z0-9+/]+=*$/.test(data)) return c.json({ error: 'Audio must be base64.' }, 400);
-    const bytes = Math.floor((data.length * 3) / 4);
-    if (bytes > MAX_AUDIO_BYTES) return c.json({ error: 'Recording too long.' }, 413);
+    const bad = badClip(key, mime, data);
+    if (bad) return c.json({ error: bad }, bad === 'Recording too long.' ? 413 : 400);
+    const bytes = clipBytes(data);
     const who = c.get('user').name || c.get('user').email;
     await db.query(
       `INSERT INTO audio (key, mime, data, bytes, recorded_by, updated_at) VALUES ($1, $2, $3, $4, $5, now())
@@ -332,6 +387,46 @@ export function createApp(db: Db, env: Env) {
          recorded_by = EXCLUDED.recorded_by, updated_at = now()`,
       [key, mime, data, bytes, who]);
     return c.json({ ok: true, key, recorded_by: who });
+  });
+
+  /* --- students' submissions --- */
+
+  admin.get('/audio-submissions', async (c) => c.json({
+    submissions: await db.query(
+      `SELECT s.id, s.key, s.created_at, u.name, u.email, (a.key IS NOT NULL) AS has_shared
+         FROM audio_submissions s JOIN users u ON u.id = s.user_id
+         LEFT JOIN audio a ON a.key = s.key
+        WHERE s.status = 'pending' ORDER BY s.created_at`),
+  }));
+
+  admin.get('/audio-submissions/:id', async (c) => {
+    const rows = await db.query<{ mime: string; data: string }>('SELECT mime, data FROM audio_submissions WHERE id = $1', [c.req.param('id')]);
+    if (!rows[0]) return c.json({ error: 'Not found.' }, 404);
+    return c.json(rows[0]);
+  });
+
+  /** Accept: the submission becomes the shared recording, credited to the student. */
+  admin.post('/audio-submissions/:id/accept', async (c) => {
+    const rows = await db.query<{ key: string; mime: string; data: string; bytes: number; name: string; email: string }>(
+      `SELECT s.key, s.mime, s.data, s.bytes, u.name, u.email FROM audio_submissions s JOIN users u ON u.id = s.user_id
+        WHERE s.id = $1 AND s.status = 'pending'`, [c.req.param('id')]);
+    const s = rows[0];
+    if (!s) return c.json({ error: 'Not found.' }, 404);
+    const who = s.name || s.email;
+    await db.query(
+      `INSERT INTO audio (key, mime, data, bytes, recorded_by, updated_at) VALUES ($1, $2, $3, $4, $5, now())
+       ON CONFLICT (key) DO UPDATE SET mime = EXCLUDED.mime, data = EXCLUDED.data, bytes = EXCLUDED.bytes,
+         recorded_by = EXCLUDED.recorded_by, updated_at = now()`,
+      [s.key, s.mime, s.data, s.bytes, who]);
+    await db.query("UPDATE audio_submissions SET status = 'accepted', reviewed_at = now(), reviewed_by = $2 WHERE id = $1",
+      [c.req.param('id'), c.get('user').email]);
+    return c.json({ ok: true, key: s.key, recorded_by: who });
+  });
+
+  admin.post('/audio-submissions/:id/decline', async (c) => {
+    await db.query("UPDATE audio_submissions SET status = 'declined', reviewed_at = now(), reviewed_by = $2 WHERE id = $1 AND status = 'pending'",
+      [c.req.param('id'), c.get('user').email]);
+    return c.json({ ok: true });
   });
 
   admin.delete('/audio/:key', async (c) => {

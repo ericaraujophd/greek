@@ -127,9 +127,30 @@ test('the whole site, as admin then student', async ({ page }) => {
   // Students hear the shared recording but cannot record.
   await page.goto('./#/alphabet/learn');
   await expect(page.getByRole('button', { name: /^Play alpha, recorded by/ })).toBeVisible();
-  await expect(page.getByRole('button', { name: /^Record / })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Record alpha' })).toHaveCount(0);
+  // A student records themselves (private) and offers it as the shared one.
+  await page.getByRole('button', { name: 'Record yourself saying alpha' }).click();
+  await page.getByRole('button', { name: 'Stop recording' }).click();
+  await page.getByRole('button', { name: 'Save this take' }).click();
+  await expect(page.getByRole('button', { name: 'Play your recording of alpha' })).toBeVisible();
+  await page.locator('summary[aria-label="Your recording of alpha"]').click();
+  await page.getByRole('button', { name: 'Offer your recording of alpha as the shared one' }).click();
+  await expect(page.getByText('Offered', { exact: true })).toBeVisible();
   await page.goto('./#/dashboard');
   await shot('11-student-dashboard');
+
+  // The admin sees the offer and accepts it; it is now credited to the student.
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await devSignIn(page, 'admin@calvinseminary.edu');
+  await expect(page.getByRole('heading', { name: 'Course map' })).toBeVisible();
+  await page.getByRole('link', { name: 'Admin' }).click();
+  await expect(page.getByRole('heading', { name: 'Offered by students (1)' })).toBeVisible();
+  await expect(page.getByText(/of \d+ recorded/)).toBeVisible();
+  await shot('12-admin-recordings');
+  await page.locator('.offer').getByRole('button', { name: 'Accept' }).click();
+  await expect(page.getByText('No recordings offered by students.')).toBeVisible();
+  await page.goto('./#/alphabet/learn');
+  await expect(page.getByRole('button', { name: 'Play alpha, recorded by student' })).toBeVisible();
 
   expect(errors).toEqual([]);
 });
