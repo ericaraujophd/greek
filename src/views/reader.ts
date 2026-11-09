@@ -18,6 +18,7 @@
  */
 import { h, mount } from '../lib/dom';
 import { appHeader } from '../components/layout';
+import { audioButton } from '../components/audioButton';
 import { isStarted } from '../lib/progress';
 import { LEXICON } from '../content/questions';
 import { UNITS, unitById, wordsThrough } from '../content/units';
@@ -93,7 +94,7 @@ export function readerView(params: { unit?: string }): Node {
     mount(panel, h('div', { class: 'stack fade-in', style: 'gap:8px' },
       h('div', { class: 'row', style: 'align-items:center' }, h('span', { class: 'greek', style: 'font-size:34px' }, form)),
       h('div', { class: 'small' }, describeParse(pos, parse)),
-      h('div', {}, 'from ', h('b', { class: 'greek', style: 'font-size:20px' }, lemma)),
+      h('div', { class: 'row', style: 'gap:8px;align-items:center' }, h('span', {}, 'from ', h('b', { class: 'greek', style: 'font-size:20px' }, lemma)), audioButton(`word:${lemma}`, lemma)),
       course
         ? h('div', {}, h('b', {}, course.gloss), h('span', { class: 'pill', style: 'margin-left:8px' }, 'learned'))
         : h('div', {}, lex?.g ?? 'no gloss', h('div', { class: 'tiny muted' }, 'Not learned yet. Gloss from the Dodson lexicon.')),

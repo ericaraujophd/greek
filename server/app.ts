@@ -232,6 +232,25 @@ export function createApp(db: Db, env: Env) {
     status: await db.query('SELECT unit_id, part, status FROM content_status'),
   }));
 
+  /* ------------------------------ recorded audio ------------------------------ */
+  // Pronunciations recorded by an admin and shared with every user. See
+  // migrations/002_audio.sql. The list is small (key, who, when), the audio
+  // itself is fetched one recording at a time, when someone presses play.
+
+  /** Largest recording accepted: about 30 seconds of speech; a word is ~20 KB. */
+  const MAX_AUDIO_BYTES = 400_000;
+  const AUDIO_KEY = /^(word|letter):[^\s]{1,60}$/u;
+
+  me.get('/audio', async (c) => c.json({
+    audio: await db.query('SELECT key, recorded_by, bytes, updated_at FROM audio ORDER BY key'),
+  }));
+
+  me.get('/audio/:key', async (c) => {
+    const rows = await db.query<{ mime: string; data: string }>('SELECT mime, data FROM audio WHERE key = $1', [c.req.param('key')]);
+    if (!rows[0]) return c.json({ error: 'No recording yet.' }, 404);
+    return c.json(rows[0]);
+  });
+
   /* ------------------------------ admin ------------------------------ */
 
   const admin = new Hono<{ Variables: Vars }>();
@@ -295,6 +314,28 @@ export function createApp(db: Db, env: Env) {
       `INSERT INTO content_status (unit_id, part, status, checked_by, updated_at) VALUES ($1, $2, $3, $4, now())
        ON CONFLICT (unit_id, part) DO UPDATE SET status = EXCLUDED.status, checked_by = EXCLUDED.checked_by, updated_at = now()`,
       [unit_id, part, status, c.get('user').email]);
+    return c.json({ ok: true });
+  });
+
+  admin.put('/audio/:key', async (c) => {
+    const key = c.req.param('key');
+    if (!AUDIO_KEY.test(key)) return c.json({ error: 'Bad audio key.' }, 400);
+    const { mime, data } = await c.req.json<{ mime: string; data: string }>();
+    if (!/^audio\/[\w.+-]+(;.*)?$/.test(mime ?? '')) return c.json({ error: 'Not an audio type.' }, 400);
+    if (typeof data !== 'string' || !/^[A-Za-z0-9+/]+=*$/.test(data)) return c.json({ error: 'Audio must be base64.' }, 400);
+    const bytes = Math.floor((data.length * 3) / 4);
+    if (bytes > MAX_AUDIO_BYTES) return c.json({ error: 'Recording too long.' }, 413);
+    const who = c.get('user').name || c.get('user').email;
+    await db.query(
+      `INSERT INTO audio (key, mime, data, bytes, recorded_by, updated_at) VALUES ($1, $2, $3, $4, $5, now())
+       ON CONFLICT (key) DO UPDATE SET mime = EXCLUDED.mime, data = EXCLUDED.data, bytes = EXCLUDED.bytes,
+         recorded_by = EXCLUDED.recorded_by, updated_at = now()`,
+      [key, mime, data, bytes, who]);
+    return c.json({ ok: true, key, recorded_by: who });
+  });
+
+  admin.delete('/audio/:key', async (c) => {
+    await db.query('DELETE FROM audio WHERE key = $1', [c.req.param('key')]);
     return c.json({ ok: true });
   });
 

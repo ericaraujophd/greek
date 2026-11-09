@@ -10,8 +10,6 @@
 export interface Settings {
   /** How many new alphabet flashcards may be introduced per day. */
   newPerDay: number;
-  /** Read the letter name aloud when a flashcard is turned over. */
-  autoSpeak: boolean;
 }
 
 const KEY = 'greek.settings.v1';
@@ -19,14 +17,13 @@ const KEY = 'greek.settings.v1';
 export const DEFAULT_SETTINGS: Settings = {
   // 18 = one batch of six letters x three cards: one new batch per session.
   newPerDay: 18,
-  autoSpeak: true,
 };
 
 export function getSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
     const saved = raw ? JSON.parse(raw) : {};
-    return { newPerDay: saved.newPerDay ?? DEFAULT_SETTINGS.newPerDay, autoSpeak: saved.autoSpeak ?? DEFAULT_SETTINGS.autoSpeak };
+    return { newPerDay: saved.newPerDay ?? DEFAULT_SETTINGS.newPerDay };
   } catch {
     return { ...DEFAULT_SETTINGS };
   }

@@ -23,19 +23,22 @@ interface State {
   latest: Map<string, { correct: number; total: number; detail: any; taken_at: string }>;
   notes: Map<string, string>;
   checklists: Map<string, Record<string, string | boolean>>;
+  /** Shared recorded pronunciations that exist: key (word:λόγος) -> who recorded it. */
+  audio: Map<string, { recorded_by: string }>;
   status: Map<string, 'draft' | 'checked'>;
 }
 
 export const state: State = {
   user: null, cards: new Map(), items: new Map(), days: new Map(), week: { seen: 0, correct: 0 },
-  best: new Map(), latest: new Map(), notes: new Map(), checklists: new Map(), status: new Map(),
+  best: new Map(), latest: new Map(), notes: new Map(), checklists: new Map(), status: new Map(), audio: new Map(),
 };
 
 /** Load everything for the signed-in user. Called once after sign-in or reload. */
 export async function loadAll(): Promise<void> {
-  const [me, cards, stats, scores, notes, prog, status] = await Promise.all([
+  const [me, cards, stats, scores, notes, prog, status, audio] = await Promise.all([
     api('GET', '/api/me'), api('GET', '/api/cards'), api('GET', '/api/stats'), api('GET', '/api/scores'),
     api('GET', '/api/notes'), api('GET', '/api/unit-progress'), api('GET', '/api/content-status'),
+    api('GET', '/api/audio'),
   ]);
   state.user = me.user;
   state.cards = new Map(cards.cards.map((c: any) => [c.card_id, c.data]));
@@ -47,6 +50,7 @@ export async function loadAll(): Promise<void> {
   state.notes = new Map(notes.notes.map((n: any) => [n.unit_id, n.body]));
   state.checklists = new Map(prog.progress.map((p: any) => [p.unit_id, p.checklist]));
   state.status = new Map(status.status.map((s: any) => [`${s.unit_id}:${s.part}`, s.status]));
+  state.audio = new Map(audio.audio.map((a: any) => [a.key, { recorded_by: a.recorded_by }]));
 }
 
 export function isAdmin(): boolean {

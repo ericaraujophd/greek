@@ -5,9 +5,10 @@
  * by the seminary. It is NOT how Greek is spoken in Greece today (modern
  * Greek pronounces η, ι, υ, ει, οι all as "ee", β as "v", and so on). That
  * is why this app has no text-to-speech: browser Greek voices are modern
- * Greek and would teach the wrong sounds. Instead an ENGLISH voice reads the
- * respellings in `say` below (see lib/speech.ts), which approximate the
- * Erasmian sounds; Mounce's own recordings remain the reference.
+ * Greek and would teach the wrong sounds, and an English voice reading
+ * respellings was tried and removed (Nov 2026) as too approximate. The
+ * respellings in `say` below are SHOWN as written guides only; Mounce's own
+ * recordings remain the reference for listening.
  *
  * RESPELLING RULES used in `say` (checked Nov 6, 2026):
  *   ah = α (father)   eh = ε (met)    ay = η (obey)     ee = long ι
@@ -41,9 +42,9 @@ export interface Letter {
   /** A real NT word that shows the letter, with its transliteration. */
   example: { greek: string; translit: string; gloss: string };
   /**
-   * Phonetic respellings for the speaker button (see lib/speech.ts): the
-   * letter's name and the example word, as an ENGLISH voice should say them
-   * to approximate Erasmian pronunciation. CAPITALS = stressed syllable,
+   * Written pronunciation guides (shown, not spoken): the letter's name and
+   * the example word, respelled for an English reader to approximate
+   * Erasmian pronunciation. CAPITALS = stressed syllable,
    * which follows the Greek accent. Edit these freely if one sounds off.
    */
   say: { name: string; example: string };

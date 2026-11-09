@@ -19,7 +19,12 @@ export default defineConfig({
     viewport: { width: 1200, height: 900 },
     // Optional: point at a Chromium you already have (CI machines). On a Mac,
     // leave CHROMIUM_PATH unset and run `npx playwright install chromium` once.
-    launchOptions: process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {},
+    // A fake microphone (a test tone) so the recording feature can be tested.
+    permissions: ['microphone'],
+    launchOptions: {
+      args: ['--use-fake-ui-for-media-stream', '--use-fake-device-for-media-stream'],
+      ...(process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : {}),
+    },
   },
   webServer: [
     {

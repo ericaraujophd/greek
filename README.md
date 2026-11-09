@@ -142,6 +142,12 @@ Workers is the likely choice: the server is written for it already).
   of Biblical Literature and Logos Bible Software.
 - Short lexicon glosses for words not yet learned: Dodson Greek-English
   Lexicon (public domain, CC0).
+- Videos: links only, to Bill Mounce's chapter overviews and workbook
+  screencasts on billmounce.com.
+- Extra listening: links only, to Ted Hildebrandt's free audio
+  (biblicalelearning.org, free for non-commercial use).
+- Pronunciation audio: recorded by the site's admins and stored in the
+  database (`audio` table). There is no computer-generated speech.
 - Font: Gentium Book Plus, SIL International (SIL Open Font License).
 - Scheduler: [ts-fsrs](https://github.com/open-spaced-repetition/ts-fsrs) (MIT).
 - Unit structure follows the course syllabus; chapter numbers refer to

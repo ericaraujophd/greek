@@ -37,6 +37,7 @@
  */
 import { h } from '../lib/dom';
 import { appHeader } from '../components/layout';
+import { audioButton } from '../components/audioButton';
 import { notesPanel } from '../components/notesPanel';
 import { api } from '../lib/api';
 import { contentVisible, isAdmin, markStarted, setChecklist, state } from '../lib/progress';
@@ -44,7 +45,7 @@ import { lessonFor } from '../content/lessons';
 import { LEXICON } from '../content/questions';
 import { PARTS, UNITS, unitById, type Unit } from '../content/units';
 import type { Lesson, Paradigm } from '../content/types';
-import { overviewLinks, screencastLinks, type VideoLink } from '../content/videos';
+import { extraListening, overviewLinks, screencastLinks, type VideoLink } from '../content/videos';
 
 /** One step of a unit. */
 interface Step {
@@ -188,7 +189,13 @@ function buildSteps(unit: Unit, lesson: Lesson | undefined): Step[] {
     doneLabel: "I've watched it", doneVerb: 'Watched',
     body: () => h('div', { class: 'stack', style: 'gap:10px' },
       videoLinks(overviewLinks(unit.chapters)),
-      h('p', { class: 'muted', style: 'margin:0' }, 'Note anything the video says differently from the book, or more clearly.')),
+      h('p', { class: 'muted', style: 'margin:0' }, 'Note anything the video says differently from the book, or more clearly.'),
+      extraListening(unit.id).length
+        ? h('div', { class: 'stack extra-listening', style: 'gap:6px' },
+            h('span', { class: 'small' }, h('b', {}, 'Extra listening (optional). '),
+              "Ted Hildebrandt's free audio on the same topic. His textbook is different, so his word list is not yours."),
+            videoLinks(extraListening(unit.id), 'biblicalelearning.org'))
+        : null),
   }));
 
   const ideasVisible = contentVisible(unit.id, 'ideas');
@@ -252,9 +259,9 @@ const ALPHABET_DRILLS: Array<[string, string]> = [
 ];
 
 /** Buttons that open Mounce's videos on billmounce.com in a new tab. */
-function videoLinks(links: VideoLink[]): Node {
+function videoLinks(links: VideoLink[], site = 'billmounce.com'): Node {
   return h('div', { class: 'row', style: 'gap:8px' }, ...links.map((l) =>
-    h('a', { class: 'btn', href: l.href, target: '_blank', rel: 'noopener' }, '▶ ', l.label, h('span', { class: 'tiny muted', style: 'margin-left:6px' }, 'billmounce.com ↗'))));
+    h('a', { class: 'btn', href: l.href, target: '_blank', rel: 'noopener' }, '▶ ', l.label, h('span', { class: 'tiny muted', style: 'margin-left:6px' }, `${site} ↗`))));
 }
 
 function pending(text: string): Node {
@@ -293,12 +300,13 @@ function ideasBody(unit: Unit, lesson: Lesson): Node {
 function wordsBody(unit: Unit): Node {
   return h('div', { class: 'stack', style: 'gap:12px' },
     draftNote(unit, 'words', 'word list'),
-    h('p', { class: 'small muted', style: 'margin:0' }, 'Say each word aloud. They are already in your daily review.'),
+    h('p', { class: 'small muted', style: 'margin:0' }, 'Say each word aloud; ▶ plays a recording where there is one. They are already in your daily review.'),
     h('div', { class: 'grid2', style: 'gap:10px' }, ...unit.words.map((w) =>
       h('div', { class: 'word-row' },
         h('span', { class: 'g' }, w.display ?? w.lemma),
         h('span', { class: 'm' }, h('span', {}, w.gloss),
-          h('span', { class: 'tiny muted' }, `${LEXICON[w.lemma]?.f ?? '?'} times in the NT${w.note ? ' · ' + w.note : ''}`))))));
+          h('span', { class: 'tiny muted' }, `${LEXICON[w.lemma]?.f ?? '?'} times in the NT${w.note ? ' · ' + w.note : ''}`)),
+        audioButton(`word:${w.lemma}`, w.lemma)))));
 }
 
 function checkBody(unit: Unit): Node {

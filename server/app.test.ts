@@ -103,3 +103,26 @@ describe('student data', () => {
     expect((await call('GET', '/api/cards', undefined, 'garbage')).status).toBe(401);
   });
 });
+
+describe('recorded audio', () => {
+  it('admins record, everyone plays, students cannot record', async () => {
+    const admin = (await devLogin('efer251@calvinseminary.edu')).json.token;
+    await call('POST', '/api/admin/invitations', { emails: 'listener@calvinseminary.edu' }, admin);
+    const student = (await devLogin('listener@calvinseminary.edu')).json.token;
+    const key = encodeURIComponent('word:λόγος');
+    const clip = { mime: 'audio/webm;codecs=opus', data: btoa('fake audio bytes') };
+
+    expect((await call('PUT', `/api/admin/audio/${key}`, clip, student)).status).toBe(403);
+    expect((await call('PUT', `/api/admin/audio/${key}`, clip, admin)).status).toBe(200);
+
+    const list = await call('GET', '/api/audio', undefined, student);
+    expect(list.json.audio.map((a: any) => a.key)).toContain('word:λόγος');
+    const got = await call('GET', `/api/audio/${key}`, undefined, student);
+    expect(got.json.data).toBe(clip.data);
+
+    expect((await call('PUT', `/api/admin/audio/${encodeURIComponent('bad key')}`, clip, admin)).status).toBe(400);
+    expect((await call('PUT', `/api/admin/audio/${key}`, { mime: 'text/html', data: clip.data }, admin)).status).toBe(400);
+    expect((await call('DELETE', `/api/admin/audio/${key}`, undefined, admin)).status).toBe(200);
+    expect((await call('GET', `/api/audio/${key}`, undefined, student)).status).toBe(404);
+  });
+});

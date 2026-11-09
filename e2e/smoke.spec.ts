@@ -102,12 +102,33 @@ test('the whole site, as admin then student', async ({ page }) => {
   await page.goto('./#/alphabet');
   await expect(page.getByRole('heading', { name: 'The alphabet' })).toBeVisible();
   await shot('10-alphabet');
+  // Recording (admin): record the letter alpha, save, and a play button appears.
+  await page.goto('./#/alphabet/learn');
+  await page.getByRole('button', { name: 'Record alpha' }).click();
+  await page.getByRole('button', { name: 'Stop recording' }).click();
+  await page.getByRole('button', { name: 'Save' }).click();
+  await expect(page.getByRole('button', { name: /^Play alpha, recorded by/ })).toBeVisible();
+  // Typing drill: clicking a key on the on-screen keyboard answers.
+  await page.goto('./#/alphabet/typing');
+  await page.locator('button.kb-key').first().click();
+  await expect(page.locator('.feedback.good, .feedback.bad')).toBeVisible();
+  await page.getByRole('button', { name: 'Words from John 1' }).click();
+  await page.getByRole('button', { name: 'λ (l key)' }).click();
+  await page.getByRole('button', { name: 'ο (o key)' }).click();
+  await expect(page.getByLabel('Type the Greek word')).toHaveValue('λο');
+  await page.getByRole('button', { name: 'Delete' }).click();
+  await expect(page.getByLabel('Type the Greek word')).toHaveValue('λ');
 
   // Sign out; the student signs in and sees no admin link.
   await page.getByRole('button', { name: 'Sign out' }).click();
   await devSignIn(page, 'student@calvinseminary.edu');
   await expect(page.getByRole('heading', { name: 'Course map' })).toBeVisible();
   await expect(page.getByRole('link', { name: 'Admin' })).toHaveCount(0);
+  // Students hear the shared recording but cannot record.
+  await page.goto('./#/alphabet/learn');
+  await expect(page.getByRole('button', { name: /^Play alpha, recorded by/ })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Record / })).toHaveCount(0);
+  await page.goto('./#/dashboard');
   await shot('11-student-dashboard');
 
   expect(errors).toEqual([]);

@@ -3,11 +3,11 @@
  * batches; tapping one shows its details. Arrow keys move between letters,
  * which makes it quick to walk through a whole batch.
  */
+import { audioButton } from '../../components/audioButton';
 import { h, mount } from '../../lib/dom';
 import { setKeyHandler } from '../../router';
 import { LETTERS, type Letter } from './data';
 import { unlockedBatch } from './cards';
-import { speakerButton, speakLetter } from '../../components/speaker';
 
 export function learnView(): Node {
   let selected: Letter = LETTERS[0];
@@ -36,14 +36,13 @@ export function learnView(): Node {
     const i = LETTERS.indexOf(selected);
     if (e.key === 'ArrowRight' && i < 23) select(LETTERS[i + 1]);
     if (e.key === 'ArrowLeft' && i > 0) select(LETTERS[i - 1]);
-    if (e.key === 'l') speakLetter(selected);
   });
 
   const view = h('div', {},
     h('h1', {}, 'Learn the letters'),
     h('p', { class: 'lead' },
       'Say each letter\'s name and sound out loud as you go. Use ', h('kbd', {}, '←'), ' ', h('kbd', {}, '→'),
-      ' to step through, ', h('kbd', {}, 'L'), ' to listen. Pronunciation is Erasmian, as in Mounce; stressed syllables are in capitals.'),
+      ' to step through. Pronunciation is Erasmian, as in Mounce; stressed syllables are in capitals.'),
     batches,
     detailSlot,
   );
@@ -59,7 +58,8 @@ function detail(l: Letter): Node {
       h('h2', { style: 'margin-top:0' }, l.name),
       h('dl', { class: 'facts' },
         h('dt', {}, 'Sound'), h('dd', {}, l.sound),
-        h('dt', {}, 'Say'), h('dd', {}, h('b', {}, l.say.name), ', ', h('span', { class: 'greek', style: 'font-size:20px' }, l.example.greek), ' = ', h('b', {}, l.say.example), ' ', speakerButton(l)),
+        h('dt', {}, 'Say'), h('dd', {}, h('b', {}, l.say.name), ', ', h('span', { class: 'greek', style: 'font-size:20px' }, l.example.greek), ' = ', h('b', {}, l.say.example)),
+        h('dt', {}, 'Hear'), h('dd', { class: 'row', style: 'gap:10px' }, h('span', {}, `${l.name}:`), audioButton(`letter:${l.id}`, l.name), h('span', { class: 'greek', style: 'font-size:20px' }, `${l.example.greek}:`), audioButton(`word:${l.example.greek}`, l.example.greek)),
         h('dt', {}, 'Transliteration'), h('dd', {}, h('b', {}, l.translit)),
         h('dt', {}, 'Example'), h('dd', {}, h('span', { class: 'greek', style: 'font-size:22px' }, l.example.greek),
           ` ${l.example.translit}, "${l.example.gloss}"`),

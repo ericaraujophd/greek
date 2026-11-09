@@ -11,7 +11,8 @@
  * HOW INPUT WORKS
  *   Keys are converted by keyToGreek(): pressing "u" types θ. If the Mac's
  *   Greek input source is already on, the key arrives as Greek and passes
- *   through unchanged, so both ways work.
+ *   through unchanged, so both ways work. The keyboard drawn under the
+ *   prompt can also be clicked or tapped; a click types that key's letter.
  *
  * TWO LEVELS
  *   Letters: the prompt is a letter name; type it. Wrong answers light up
@@ -35,14 +36,43 @@ const KB_ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
 /** Keys where the Greek letter is NOT the look-alike Latin letter: highlighted in gold. */
 const ODD_KEYS = new Set(['u', 'h', 'j', 'c', 'v', 'x', 'y', 'f', 'w', 'q']);
 
-function keyboardMap(highlight?: string): Node {
-  return h('div', { class: 'kb', 'aria-hidden': 'true' },
-    KB_ROWS.map((row) => h('div', { class: 'kb-row' },
+/**
+ * The on-screen keyboard. Each key shows its Greek letter and the Latin key
+ * it sits on. Keys can be clicked or tapped: `onKey` receives the Greek
+ * letter (or "⌫" for delete). Keys use mousedown + preventDefault so the
+ * answer box keeps its focus and cursor while you click.
+ */
+function keyboardMap(onKey: (greek: string) => void, highlight?: string, withDelete = false): Node {
+  const key = (greek: string, latin: string, cls: string, label: string) => {
+    const b = h('button', { type: 'button', class: cls, 'aria-label': label }, h('span', { class: 'g' }, greek), latin) as HTMLButtonElement;
+    b.addEventListener('mousedown', (e) => e.preventDefault());
+    b.addEventListener('click', () => onKey(greek));
+    return b;
+  };
+  return h('div', { class: 'kb' },
+    KB_ROWS.map((row, r) => h('div', { class: 'kb-row' },
       [...row].map((k) => {
         const greek = k === 'q' ? ';' : keyToGreek(k);
         const cls = ['kb-key', ODD_KEYS.has(k) ? 'odd' : '', highlight === k ? 'hint' : ''].join(' ');
-        return h('div', { class: cls }, h('span', { class: 'g' }, greek), k);
-      }))));
+        return key(greek, k, cls, `${greek} (${k} key)`);
+      }),
+      r === 2 && withDelete ? key('⌫', 'delete', 'kb-key wide', 'Delete') : null)));
+}
+
+/** Type `text` into an input at its cursor and let its 'input' handler run. */
+function typeInto(input: HTMLInputElement, text: string): void {
+  if (input.readOnly) return;
+  input.focus();
+  if (text === '⌫') {
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? start;
+    if (start !== end) input.setRangeText('', start, end, 'end');
+    else if (start > 0) input.setRangeText('', start - 1, start, 'end');
+  } else {
+    const start = input.selectionStart ?? input.value.length;
+    input.setRangeText(text, start, input.selectionEnd ?? start, 'end');
+  }
+  input.dispatchEvent(new Event('input', { bubbles: true }));
 }
 
 export function typingView(): Node {
@@ -118,11 +148,12 @@ export function typingView(): Node {
           mount(feedback, h('div', {},
             h('div', {}, `${letter.name}${final ? ' (final)' : ''} is ${expected}, on the "${key}" key.`),
             h('button', { class: 'small', style: 'margin-top:8px', onclick: advance }, 'Next ', h('kbd', {}, 'space'))));
-          if (showMap) mount(mapSlot, keyboardMap(key));
+          if (showMap) mount(mapSlot, keyboardMap(() => {}, key));
         }
       });
 
-      const mapSlot = h('div', {}, showMap ? keyboardMap() : null);
+      // Clicking a key answers, exactly like typing it.
+      const mapSlot = h('div', {}, showMap ? keyboardMap((g) => { box.value = ''; typeInto(box, g === ';' ? ';' : g); }) : null);
       mount(root, h('div', {},
         levelSwitch(),
         h('div', { class: 'drill-top' }, h('span', {}, 'Typing: letters'), h('span', {}, `${i + 1} / ${prompts.length}`)),
@@ -193,7 +224,7 @@ export function typingView(): Node {
           h('div', { class: 'name' }, transliterate(word.greek)),
           form),
         feedback,
-        showMap ? keyboardMap() : null,
+        showMap ? keyboardMap((g) => typeInto(input, g), undefined, true) : null,
       ));
       input.focus();
     }

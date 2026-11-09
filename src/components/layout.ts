@@ -1,6 +1,6 @@
 /**
  * layout.ts: the header shown on every signed-in page, plus small shared
- * pieces (Greek-word speaker button, score colour, loading and error boxes).
+ * pieces (score colour, loading and error boxes).
  */
 import { logoMark } from './logo';
 import { h } from '../lib/dom';
@@ -40,16 +40,11 @@ export function scoreColor(pct: number | undefined): string {
   return pct >= 85 ? 'var(--green)' : 'var(--orange)';
 }
 
-/**
- * A "Listen" button for a Greek word. It reads an approximate Erasmian
- * pronunciation through an English voice (see lib/speech.ts for why), using
- * the transliteration without macrons. Marked approximate in its title.
- */
 /*
- * There is deliberately no "listen" button for Greek words. An English voice
- * reading a transliteration guesses the stress and loses the difference
- * between ε and η, so it taught wrong sounds (removed Nov 6, 2026). Only
- * the alphabet drills speak, from hand-checked respellings in
+ * There is deliberately NO audio anywhere in the site (removed Nov 6 and 9,
+ * 2026). Browser voices either speak modern Greek (wrong sounds) or are
+ * English voices reading respellings (stress guessed, no ü, no "loch" χ).
+ * The alphabet drills show written respellings instead ("AHL-fah"), from
  * src/modules/alphabet/data.ts. Real recordings may come later.
  */
 
